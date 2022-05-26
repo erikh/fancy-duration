@@ -6,6 +6,8 @@ license = "MIT"
 authors = ["Erik Hollensbe <github@hollensbe.org>"]
 readme = "README.md"
 keywords = ["time", "duration"]
+description = "Fancy text representations for durations"
+repository = "https://github.com/erikh/fancy-duration"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
