@@ -1,5 +1,22 @@
+//! Using this library is very simple:
+//!
+//! ```
+//! use std::time::Duration;
+//! use fancy_duration::FancyDuration;
+//!
+//! pub fn main() {
+//!     assert_eq!(FancyDuration(Duration::new(20, 0)).to_string(), "20s");
+//!     assert_eq!(FancyDuration(Duration::new(600, 0)).to_string(), "10m");
+//!     assert_eq!(FancyDuration(Duration::new(120, 0)).to_string(), "2m");
+//!     assert_eq!(FancyDuration(Duration::new(185, 0)).to_string(), "3m 5s");
+//! }
+//! ```
+//!
+
 use std::time::Duration;
 
+/// To implement a fancier duration, just have your duration return the number of seconds as a part
+/// of the following method call.
 pub trait AsSecs {
     fn as_secs(&self) -> u64;
 }
@@ -22,10 +39,12 @@ impl<D> FancyDuration<D>
 where
     D: AsSecs + Sized,
 {
+    /// Construct a fancier duration!
     pub fn new(d: D) -> Self {
         Self(d)
     }
 
+    /// Show the duration in a fancier format!
     pub fn format(&self) -> String {
         let mut time = self.0.as_secs();
 
@@ -63,6 +82,8 @@ where
                 "".to_string()
             },
         )
+        .trim_end()
+        .to_string()
     }
 }
 
@@ -85,15 +106,15 @@ mod tests {
     fn test_duration_to_string() {
         assert_eq!(FancyDuration(Duration::new(600, 0)).to_string(), "10m");
         assert_eq!(FancyDuration(Duration::new(120, 0)).to_string(), "2m");
-        assert_eq!(FancyDuration(Duration::new(185, 0)).to_string(), "3m5s");
+        assert_eq!(FancyDuration(Duration::new(185, 0)).to_string(), "3m 5s");
         assert_eq!(
             FancyDuration(Duration::new(24 * 60 * 60, 0)).to_string(),
             "1d"
         );
-        assert_eq!(FancyDuration(Duration::new(324, 0)).to_string(), "5m24s");
+        assert_eq!(FancyDuration(Duration::new(324, 0)).to_string(), "5m 24s");
         assert_eq!(
             FancyDuration(Duration::new(24 * 60 * 60 + 324, 0)).to_string(),
-            "1d5m24s"
+            "1d 5m 24s"
         );
     }
 
@@ -106,7 +127,7 @@ mod tests {
         assert_eq!(FancyDuration(time::Duration::new(120, 0)).to_string(), "2m");
         assert_eq!(
             FancyDuration(time::Duration::new(185, 0)).to_string(),
-            "3m5s"
+            "3m 5s"
         );
         assert_eq!(
             FancyDuration(time::Duration::new(24 * 60 * 60, 0)).to_string(),
@@ -114,11 +135,11 @@ mod tests {
         );
         assert_eq!(
             FancyDuration(time::Duration::new(324, 0)).to_string(),
-            "5m24s"
+            "5m 24s"
         );
         assert_eq!(
             FancyDuration(time::Duration::new(24 * 60 * 60 + 324, 0)).to_string(),
-            "1d5m24s"
+            "1d 5m 24s"
         );
     }
 }
