@@ -13,3 +13,11 @@ repository = "https://github.com/erikh/fancy-duration"
 
 [dependencies]
 time = "^0.3"
+itoa = "^1"
+
+[dev-dependencies]
+criterion = "^0.3"
+
+[[bench]]
+name = "basic"
+harness = false
