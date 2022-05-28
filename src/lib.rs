@@ -18,18 +18,18 @@ use std::time::Duration;
 /// To implement a fancier duration, just have your duration return the number of seconds as a part
 /// of the following method call.
 pub trait AsSecs {
-    fn as_secs(&self) -> u64;
+    fn as_secs(&self) -> i64;
 }
 
 impl AsSecs for Duration {
-    fn as_secs(&self) -> u64 {
-        self.as_secs_f64() as u64
+    fn as_secs(&self) -> i64 {
+        self.as_secs_f64() as i64
     }
 }
 
 impl AsSecs for time::Duration {
-    fn as_secs(&self) -> u64 {
-        self.whole_seconds() as u64
+    fn as_secs(&self) -> i64 {
+        self.whole_seconds() as i64
     }
 }
 
