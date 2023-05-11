@@ -22,6 +22,8 @@
 //! }
 //! ```
 //!
+//! It also has [serde] support.
+//!
 
 use serde::{de::Visitor, Deserialize, Serialize};
 use std::{marker::PhantomData, time::Duration};
@@ -241,7 +243,7 @@ where
 mod tests {
     use std::time::Duration;
 
-    use crate::FancyDuration;
+    use crate::{AsSecs, FancyDuration};
 
     #[test]
     fn test_duration_to_string() {
@@ -324,6 +326,46 @@ mod tests {
             let fancy = FancyDuration::<Duration>::parse(item.0).unwrap();
             assert_eq!(fancy.duration(), item.1);
             assert_eq!(FancyDuration::new(item.1).to_string(), item.0);
+        }
+    }
+
+    #[test]
+    fn test_serde() {
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct MyDuration<D: AsSecs> {
+            duration: FancyDuration<D>,
+        }
+
+        let duration_table = [
+            ("{\"duration\":\"10s\"}", Duration::new(10, 0)),
+            ("{\"duration\":\"3m 5s\"}", Duration::new(185, 0)),
+            (
+                "{\"duration\":\"3m 2w 2d 10m 10s\"}",
+                Duration::new(9159010, 0),
+            ),
+        ];
+
+        let time_table = [
+            ("{\"duration\":\"10s\"}", time::Duration::new(10, 0)),
+            ("{\"duration\":\"3m 5s\"}", time::Duration::new(185, 0)),
+            (
+                "{\"duration\":\"3m 2w 2d 10m 10s\"}",
+                time::Duration::new(9159010, 0),
+            ),
+        ];
+
+        for item in duration_table {
+            let md: MyDuration<Duration> = serde_json::from_str(item.0).unwrap();
+            assert_eq!(md.duration.duration(), item.1);
+            assert_eq!(serde_json::to_string(&md).unwrap(), item.0);
+        }
+
+        for item in time_table {
+            let md: MyDuration<time::Duration> = serde_json::from_str(item.0).unwrap();
+            assert_eq!(md.duration.duration(), item.1);
+            assert_eq!(serde_json::to_string(&md).unwrap(), item.0);
         }
     }
 }
