@@ -23,17 +23,26 @@
 //! ```
 //!
 
-use std::time::Duration;
+use serde::{de::Visitor, Deserialize, Serialize};
+use std::{marker::PhantomData, time::Duration};
 
 /// To implement a fancier duration, just have your duration return the number of seconds as a part
-/// of the following method call.
-pub trait AsSecs {
+/// of the following method call, as well as a method to handle parsing.
+pub trait AsSecs: Sized {
     fn as_secs(&self) -> i64;
+    fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error>;
 }
 
 impl AsSecs for Duration {
     fn as_secs(&self) -> i64 {
         self.as_secs_f64() as i64
+    }
+
+    fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
+        Ok(Duration::new(
+            FancyDuration::<Duration>::parse_to_seconds(s).map(|s| s.abs() as u64)?,
+            0,
+        ))
     }
 }
 
@@ -41,32 +50,21 @@ impl AsSecs for time::Duration {
     fn as_secs(&self) -> i64 {
         self.whole_seconds() as i64
     }
+
+    fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
+        Ok(time::Duration::new(
+            FancyDuration::<time::Duration>::parse_to_seconds(s)?,
+            0,
+        ))
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct FancyDuration<D: AsSecs>(pub D);
 
-impl FancyDuration<time::Duration> {
-    pub fn parse(s: &str) -> Result<Self, anyhow::Error> {
-        Ok(FancyDuration::new(time::Duration::new(
-            FancyDuration::<time::Duration>::parse_to_seconds(s)?,
-            0,
-        )))
-    }
-}
-
-impl FancyDuration<Duration> {
-    pub fn parse(s: &str) -> Result<Self, anyhow::Error> {
-        Ok(FancyDuration::new(Duration::new(
-            FancyDuration::<Duration>::parse_to_seconds(s).map(|s| s.abs() as u64)?,
-            0,
-        )))
-    }
-}
-
 impl<D> FancyDuration<D>
 where
-    D: AsSecs + Sized,
+    D: AsSecs,
 {
     /// Construct a fancier duration!
     pub fn new(d: D) -> Self {
@@ -78,6 +76,10 @@ where
         D: Clone,
     {
         self.0.clone()
+    }
+
+    pub fn parse(s: &str) -> Result<Self, anyhow::Error> {
+        Ok(FancyDuration::new(D::parse_to_duration(s)?))
     }
 
     /// Show the duration in a fancier format!
@@ -185,6 +187,53 @@ where
 {
     fn to_string(&self) -> String {
         self.format()
+    }
+}
+
+impl<D> Serialize for FancyDuration<D>
+where
+    D: AsSecs,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+struct FancyDurationVisitor<D: AsSecs>(PhantomData<D>);
+
+impl<D> Visitor<'_> for FancyDurationVisitor<D>
+where
+    D: AsSecs,
+{
+    type Value = FancyDuration<D>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("expecting a duration in 'fancy' format")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match FancyDuration::parse(v) {
+            Ok(res) => Ok(res),
+            Err(e) => Err(serde::de::Error::custom(e)),
+        }
+    }
+}
+
+impl<'de, T> Deserialize<'de> for FancyDuration<T>
+where
+    T: AsSecs,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(FancyDurationVisitor(PhantomData::default()))
     }
 }
 
