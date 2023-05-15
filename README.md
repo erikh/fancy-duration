@@ -26,6 +26,8 @@ pub fn main() {
 
 Also works with the `time` crate.
 
+Also has `serde` support!
+
 ## Author
 
 Erik Hollensbe <github@hollensbe.org>
