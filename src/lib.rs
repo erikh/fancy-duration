@@ -61,7 +61,7 @@ impl AsSecs for time::Duration {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FancyDuration<D: AsSecs>(pub D);
 
 impl<D> FancyDuration<D>
