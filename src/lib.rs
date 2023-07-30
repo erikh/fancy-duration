@@ -84,8 +84,16 @@ where
         Ok(FancyDuration::new(D::parse_to_duration(s)?))
     }
 
-    /// Show the duration in a fancier format!
     pub fn format(&self) -> String {
+        self.format_internal(true)
+    }
+
+    pub fn format_compact(&self) -> String {
+        self.format_internal(false)
+    }
+
+    /// Show the duration in a fancier format!
+    fn format_internal(&self, pad: bool) -> String {
         let mut time = self.0.as_secs();
 
         if time == 0 {
@@ -105,24 +113,25 @@ where
 
         let mut itoa = itoa::Buffer::new();
 
+        // I should fix this someday
         let s = if months >= 1 {
-            itoa.format(months).to_string() + "m "
+            itoa.format(months).to_string() + "m" + if pad { " " } else { "" }
         } else {
             "".to_string()
         } + &(if weeks >= 1 {
-            itoa.format(weeks).to_string() + "w "
+            itoa.format(weeks).to_string() + "w" + if pad { " " } else { "" }
         } else {
             "".to_string()
         }) + &(if days >= 1 {
-            itoa.format(days).to_string() + "d "
+            itoa.format(days).to_string() + "d" + if pad { " " } else { "" }
         } else {
             "".to_string()
         }) + &(if hours >= 1 {
-            itoa.format(hours).to_string() + "h "
+            itoa.format(hours).to_string() + "h" + if pad { " " } else { "" }
         } else {
             "".to_string()
         }) + &(if minutes >= 1 {
-            itoa.format(minutes).to_string() + "m "
+            itoa.format(minutes).to_string() + "m" + if pad { " " } else { "" }
         } else {
             "".to_string()
         }) + &(if time >= 1 {
@@ -138,9 +147,18 @@ where
         let mut secs: i64 = 0;
         let mut past_minutes = false;
 
-        for item in s.split(" ").collect::<Vec<&str>>().iter().rev() {
-            let item = item.trim();
+        let rx = regex::Regex::new(r#"([0-9]+[a-zA-Z])\s*"#)?;
+        let list: Vec<&str> = rx
+            .captures_iter(s)
+            .flat_map(|c| {
+                c.iter()
+                    .skip(1)
+                    .filter_map(|s| s.map(|h| h.as_str()))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
 
+        for item in list.iter().rev() {
             match item.chars().last() {
                 Some('s') => {
                     let item = item.strip_suffix('s').unwrap();
@@ -267,6 +285,23 @@ mod tests {
             FancyDuration(Duration::new(99 * 24 * 60 * 60 + 324, 0)).to_string(),
             "3m 1w 2d 5m 24s"
         );
+
+        assert_eq!(
+            FancyDuration(Duration::new(324, 0)).format_compact(),
+            "5m24s"
+        );
+        assert_eq!(
+            FancyDuration(Duration::new(24 * 60 * 60 + 324, 0)).format_compact(),
+            "1d5m24s"
+        );
+        assert_eq!(
+            FancyDuration(Duration::new(27 * 24 * 60 * 60 + 324, 0)).format_compact(),
+            "3w6d5m24s"
+        );
+        assert_eq!(
+            FancyDuration(Duration::new(99 * 24 * 60 * 60 + 324, 0)).format_compact(),
+            "3m1w2d5m24s"
+        );
     }
 
     #[test]
@@ -300,6 +335,19 @@ mod tests {
             FancyDuration(time::Duration::new(99 * 24 * 60 * 60 + 324, 0)).to_string(),
             "3m 1w 2d 5m 24s"
         );
+
+        assert_eq!(
+            FancyDuration(time::Duration::new(24 * 60 * 60 + 324, 0)).format_compact(),
+            "1d5m24s"
+        );
+        assert_eq!(
+            FancyDuration(time::Duration::new(27 * 24 * 60 * 60 + 324, 0)).format_compact(),
+            "3w6d5m24s"
+        );
+        assert_eq!(
+            FancyDuration(time::Duration::new(99 * 24 * 60 * 60 + 324, 0)).format_compact(),
+            "3m1w2d5m24s"
+        );
     }
 
     #[test]
@@ -310,10 +358,20 @@ mod tests {
             ("3m 2w 2d 10m 10s", Duration::new(9159010, 0)),
         ];
 
+        let compact_duration_table = [
+            ("3m5s", Duration::new(185, 0)),
+            ("3m2w2d10m10s", Duration::new(9159010, 0)),
+        ];
+
         let time_table = [
             ("10s", time::Duration::new(10, 0)),
             ("3m 5s", time::Duration::new(185, 0)),
             ("3m 2w 2d 10m 10s", time::Duration::new(9159010, 0)),
+        ];
+
+        let compact_time_table = [
+            ("3m5s", time::Duration::new(185, 0)),
+            ("3m2w2d10m10s", time::Duration::new(9159010, 0)),
         ];
 
         for item in duration_table {
@@ -322,10 +380,22 @@ mod tests {
             assert_eq!(FancyDuration::new(item.1).to_string(), item.0);
         }
 
-        for item in time_table {
+        for item in compact_duration_table {
             let fancy = FancyDuration::<Duration>::parse(item.0).unwrap();
             assert_eq!(fancy.duration(), item.1);
+            assert_eq!(FancyDuration::new(item.1).format_compact(), item.0);
+        }
+
+        for item in time_table {
+            let fancy = FancyDuration::<time::Duration>::parse(item.0).unwrap();
+            assert_eq!(fancy.duration(), item.1);
             assert_eq!(FancyDuration::new(item.1).to_string(), item.0);
+        }
+
+        for item in compact_time_table {
+            let fancy = FancyDuration::<time::Duration>::parse(item.0).unwrap();
+            assert_eq!(fancy.duration(), item.1);
+            assert_eq!(FancyDuration::new(item.1).format_compact(), item.0);
         }
     }
 
