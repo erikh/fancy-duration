@@ -48,6 +48,20 @@ impl AsSecs for Duration {
     }
 }
 
+#[cfg(feature = "chrono")]
+impl AsSecs for chrono::Duration {
+    fn as_secs(&self) -> i64 {
+        self.num_seconds() as i64
+    }
+
+    fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
+        Ok(chrono::Duration::seconds(
+            FancyDuration::<chrono::Duration>::parse_to_seconds(s)?,
+        ))
+    }
+}
+
+#[cfg(feature = "time")]
 impl AsSecs for time::Duration {
     fn as_secs(&self) -> i64 {
         self.whole_seconds() as i64
@@ -261,7 +275,7 @@ where
 mod tests {
     use std::time::Duration;
 
-    use crate::{AsSecs, FancyDuration};
+    use crate::FancyDuration;
 
     #[test]
     fn test_duration_to_string() {
@@ -305,6 +319,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "time")]
     fn test_time_duration_to_string() {
         assert_eq!(
             FancyDuration(time::Duration::new(600, 0)).to_string(),
@@ -351,6 +366,56 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "chrono")]
+    fn test_chrono_duration_to_string() {
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(600)).to_string(),
+            "10m"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(120)).to_string(),
+            "2m"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(185)).to_string(),
+            "3m 5s"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(24 * 60 * 60)).to_string(),
+            "1d"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(324)).to_string(),
+            "5m 24s"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(24 * 60 * 60 + 324)).to_string(),
+            "1d 5m 24s"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(27 * 24 * 60 * 60 + 324)).to_string(),
+            "3w 6d 5m 24s"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(99 * 24 * 60 * 60 + 324)).to_string(),
+            "3m 1w 2d 5m 24s"
+        );
+
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(24 * 60 * 60 + 324)).format_compact(),
+            "1d5m24s"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(27 * 24 * 60 * 60 + 324)).format_compact(),
+            "3w6d5m24s"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(99 * 24 * 60 * 60 + 324)).format_compact(),
+            "3m1w2d5m24s"
+        );
+    }
+
+    #[test]
     fn test_parse_duration() {
         let duration_table = [
             ("10s", Duration::new(10, 0)),
@@ -361,17 +426,6 @@ mod tests {
         let compact_duration_table = [
             ("3m5s", Duration::new(185, 0)),
             ("3m2w2d10m10s", Duration::new(9159010, 0)),
-        ];
-
-        let time_table = [
-            ("10s", time::Duration::new(10, 0)),
-            ("3m 5s", time::Duration::new(185, 0)),
-            ("3m 2w 2d 10m 10s", time::Duration::new(9159010, 0)),
-        ];
-
-        let compact_time_table = [
-            ("3m5s", time::Duration::new(185, 0)),
-            ("3m2w2d10m10s", time::Duration::new(9159010, 0)),
         ];
 
         for item in duration_table {
@@ -386,16 +440,54 @@ mod tests {
             assert_eq!(FancyDuration::new(item.1).format_compact(), item.0);
         }
 
-        for item in time_table {
-            let fancy = FancyDuration::<time::Duration>::parse(item.0).unwrap();
-            assert_eq!(fancy.duration(), item.1);
-            assert_eq!(FancyDuration::new(item.1).to_string(), item.0);
+        #[cfg(feature = "time")]
+        {
+            let time_table = [
+                ("10s", time::Duration::new(10, 0)),
+                ("3m 5s", time::Duration::new(185, 0)),
+                ("3m 2w 2d 10m 10s", time::Duration::new(9159010, 0)),
+            ];
+
+            let compact_time_table = [
+                ("3m5s", time::Duration::new(185, 0)),
+                ("3m2w2d10m10s", time::Duration::new(9159010, 0)),
+            ];
+            for item in time_table {
+                let fancy = FancyDuration::<time::Duration>::parse(item.0).unwrap();
+                assert_eq!(fancy.duration(), item.1);
+                assert_eq!(FancyDuration::new(item.1).to_string(), item.0);
+            }
+
+            for item in compact_time_table {
+                let fancy = FancyDuration::<time::Duration>::parse(item.0).unwrap();
+                assert_eq!(fancy.duration(), item.1);
+                assert_eq!(FancyDuration::new(item.1).format_compact(), item.0);
+            }
         }
 
-        for item in compact_time_table {
-            let fancy = FancyDuration::<time::Duration>::parse(item.0).unwrap();
-            assert_eq!(fancy.duration(), item.1);
-            assert_eq!(FancyDuration::new(item.1).format_compact(), item.0);
+        #[cfg(feature = "chrono")]
+        {
+            let chrono_table = [
+                ("10s", chrono::Duration::seconds(10)),
+                ("3m 5s", chrono::Duration::seconds(185)),
+                ("3m 2w 2d 10m 10s", chrono::Duration::seconds(9159010)),
+            ];
+
+            let compact_chrono_table = [
+                ("3m5s", chrono::Duration::seconds(185)),
+                ("3m2w2d10m10s", chrono::Duration::seconds(9159010)),
+            ];
+            for item in chrono_table {
+                let fancy = FancyDuration::<chrono::Duration>::parse(item.0).unwrap();
+                assert_eq!(fancy.duration(), item.1);
+                assert_eq!(FancyDuration::new(item.1).to_string(), item.0);
+            }
+
+            for item in compact_chrono_table {
+                let fancy = FancyDuration::<chrono::Duration>::parse(item.0).unwrap();
+                assert_eq!(fancy.duration(), item.1);
+                assert_eq!(FancyDuration::new(item.1).format_compact(), item.0);
+            }
         }
     }
 
@@ -404,8 +496,8 @@ mod tests {
         use serde::{Deserialize, Serialize};
 
         #[derive(Serialize, Deserialize)]
-        struct MyDuration<D: AsSecs> {
-            duration: FancyDuration<D>,
+        struct StdDuration {
+            duration: FancyDuration<std::time::Duration>,
         }
 
         let duration_table = [
@@ -417,25 +509,56 @@ mod tests {
             ),
         ];
 
-        let time_table = [
-            ("{\"duration\":\"10s\"}", time::Duration::new(10, 0)),
-            ("{\"duration\":\"3m 5s\"}", time::Duration::new(185, 0)),
-            (
-                "{\"duration\":\"3m 2w 2d 10m 10s\"}",
-                time::Duration::new(9159010, 0),
-            ),
-        ];
-
         for item in duration_table {
-            let md: MyDuration<Duration> = serde_json::from_str(item.0).unwrap();
+            let md: StdDuration = serde_json::from_str(item.0).unwrap();
             assert_eq!(md.duration.duration(), item.1);
             assert_eq!(serde_json::to_string(&md).unwrap(), item.0);
         }
 
-        for item in time_table {
-            let md: MyDuration<time::Duration> = serde_json::from_str(item.0).unwrap();
-            assert_eq!(md.duration.duration(), item.1);
-            assert_eq!(serde_json::to_string(&md).unwrap(), item.0);
+        #[cfg(feature = "time")]
+        {
+            #[derive(Serialize, Deserialize)]
+            struct TimeDuration {
+                duration: FancyDuration<time::Duration>,
+            }
+
+            let time_table = [
+                ("{\"duration\":\"10s\"}", time::Duration::new(10, 0)),
+                ("{\"duration\":\"3m 5s\"}", time::Duration::new(185, 0)),
+                (
+                    "{\"duration\":\"3m 2w 2d 10m 10s\"}",
+                    time::Duration::new(9159010, 0),
+                ),
+            ];
+
+            for item in time_table {
+                let md: TimeDuration = serde_json::from_str(item.0).unwrap();
+                assert_eq!(md.duration.duration(), item.1);
+                assert_eq!(serde_json::to_string(&md).unwrap(), item.0);
+            }
+        }
+
+        #[cfg(feature = "chrono")]
+        {
+            #[derive(Serialize, Deserialize)]
+            struct ChronoDuration {
+                duration: FancyDuration<chrono::Duration>,
+            }
+
+            let chrono_table = [
+                ("{\"duration\":\"10s\"}", chrono::Duration::seconds(10)),
+                ("{\"duration\":\"3m 5s\"}", chrono::Duration::seconds(185)),
+                (
+                    "{\"duration\":\"3m 2w 2d 10m 10s\"}",
+                    chrono::Duration::seconds(9159010),
+                ),
+            ];
+
+            for item in chrono_table {
+                let md: ChronoDuration = serde_json::from_str(item.0).unwrap();
+                assert_eq!(md.duration.duration(), item.1);
+                assert_eq!(serde_json::to_string(&md).unwrap(), item.0);
+            }
         }
     }
 }

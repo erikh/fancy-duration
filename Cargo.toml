@@ -12,12 +12,18 @@ repository = "https://github.com/erikh/fancy-duration"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-time = { version = "^0.3", features = [ "serde" ] }
+time = { version = "^0.3", features = [ "serde" ], optional = true }
 itoa = "^1"
 serde = { version = "^1", features = [ "derive" ] }
 serde_derive = "^1"
 anyhow = "^1"
 regex = "^1"
+chrono = { version = "^0.4", features = [ "serde" ], optional = true }
+
+[features]
+default = [ "time" ]
+time = [ "dep:time" ]
+chrono = [ "dep:chrono" ]
 
 [dev-dependencies]
 criterion = "^0.3"
