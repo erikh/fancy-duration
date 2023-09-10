@@ -1,11 +1,11 @@
 [package]
 name = "fancy-duration"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 license = "MIT"
 authors = ["Erik Hollensbe <github@hollensbe.org>"]
 readme = "README.md"
-keywords = ["time", "duration"]
+keywords = ["time", "duration", "parse"]
 description = "Fancy text representations for durations"
 repository = "https://github.com/erikh/fancy-duration"
 
