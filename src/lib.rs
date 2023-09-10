@@ -114,6 +114,8 @@ where
             return "0".to_string();
         }
 
+        let years = time / 12 / 30 / 24 / 60 / 60;
+        time -= years * 12 * 30 * 24 * 60 * 60;
         let months = time / 30 / 24 / 60 / 60;
         time -= months * 30 * 24 * 60 * 60;
         let weeks = time / 7 / 24 / 60 / 60;
@@ -128,11 +130,15 @@ where
         let mut itoa = itoa::Buffer::new();
 
         // I should fix this someday
-        let s = if months >= 1 {
+        let s = if years >= 1 {
+            itoa.format(years).to_string() + "y" + if pad { " " } else { "" }
+        } else {
+            "".to_string()
+        } + &(if months >= 1 {
             itoa.format(months).to_string() + "m" + if pad { " " } else { "" }
         } else {
             "".to_string()
-        } + &(if weeks >= 1 {
+        }) + &(if weeks >= 1 {
             itoa.format(weeks).to_string() + "w" + if pad { " " } else { "" }
         } else {
             "".to_string()
@@ -206,6 +212,12 @@ where
                     let item = item.strip_suffix('w').unwrap();
                     let result: i64 = item.parse()?;
                     secs += result * 60 * 60 * 24 * 7;
+                }
+                Some('y') => {
+                    past_minutes = true;
+                    let item = item.strip_suffix('y').unwrap();
+                    let result: i64 = item.parse()?;
+                    secs += result * 12 * 30 * 60 * 60 * 24;
                 }
                 Some(_) | None => {}
             }
@@ -301,6 +313,17 @@ mod tests {
         );
 
         assert_eq!(
+            FancyDuration(Duration::new(12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60, 0)).to_string(),
+            "1y 1w 3d"
+        );
+
+        assert_eq!(
+            FancyDuration(Duration::new(12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60, 0))
+                .format_compact(),
+            "1y1w3d"
+        );
+
+        assert_eq!(
             FancyDuration(Duration::new(324, 0)).format_compact(),
             "5m24s"
         );
@@ -349,6 +372,24 @@ mod tests {
         assert_eq!(
             FancyDuration(time::Duration::new(99 * 24 * 60 * 60 + 324, 0)).to_string(),
             "3m 1w 2d 5m 24s"
+        );
+
+        assert_eq!(
+            FancyDuration(time::Duration::new(
+                12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
+                0
+            ))
+            .to_string(),
+            "1y 1w 3d"
+        );
+
+        assert_eq!(
+            FancyDuration(time::Duration::new(
+                12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
+                0
+            ))
+            .format_compact(),
+            "1y1w3d"
         );
 
         assert_eq!(
@@ -401,6 +442,21 @@ mod tests {
             "3m 1w 2d 5m 24s"
         );
 
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(
+                12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
+            ))
+            .to_string(),
+            "1y 1w 3d"
+        );
+
+        assert_eq!(
+            FancyDuration(chrono::Duration::seconds(
+                12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
+            ))
+            .format_compact(),
+            "1y1w3d"
+        );
         assert_eq!(
             FancyDuration(chrono::Duration::seconds(24 * 60 * 60 + 324)).format_compact(),
             "1d5m24s"
@@ -504,8 +560,8 @@ mod tests {
             ("{\"duration\":\"10s\"}", Duration::new(10, 0)),
             ("{\"duration\":\"3m 5s\"}", Duration::new(185, 0)),
             (
-                "{\"duration\":\"3m 2w 2d 10m 10s\"}",
-                Duration::new(9159010, 0),
+                "{\"duration\":\"1y 3m 2w 2d 10m 10s\"}",
+                Duration::new(40263010, 0),
             ),
         ];
 
@@ -526,8 +582,8 @@ mod tests {
                 ("{\"duration\":\"10s\"}", time::Duration::new(10, 0)),
                 ("{\"duration\":\"3m 5s\"}", time::Duration::new(185, 0)),
                 (
-                    "{\"duration\":\"3m 2w 2d 10m 10s\"}",
-                    time::Duration::new(9159010, 0),
+                    "{\"duration\":\"1y 3m 2w 2d 10m 10s\"}",
+                    time::Duration::new(40263010, 0),
                 ),
             ];
 
@@ -549,8 +605,8 @@ mod tests {
                 ("{\"duration\":\"10s\"}", chrono::Duration::seconds(10)),
                 ("{\"duration\":\"3m 5s\"}", chrono::Duration::seconds(185)),
                 (
-                    "{\"duration\":\"3m 2w 2d 10m 10s\"}",
-                    chrono::Duration::seconds(9159010),
+                    "{\"duration\":\"1y 3m 2w 2d 10m 10s\"}",
+                    chrono::Duration::seconds(40263010),
                 ),
             ];
 
