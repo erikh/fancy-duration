@@ -341,6 +341,12 @@ mod tests {
 
     #[test]
     fn test_duration_to_string() {
+        assert_eq!(FancyDuration(Duration::new(0, 600)).to_string(), "600ns");
+        assert_eq!(FancyDuration(Duration::new(0, 600000)).to_string(), "600us");
+        assert_eq!(
+            FancyDuration(Duration::new(0, 600000000)).to_string(),
+            "600ms"
+        );
         assert_eq!(FancyDuration(Duration::new(600, 0)).to_string(), "10m");
         assert_eq!(FancyDuration(Duration::new(120, 0)).to_string(), "2m");
         assert_eq!(FancyDuration(Duration::new(185, 0)).to_string(), "3m 5s");
@@ -394,6 +400,18 @@ mod tests {
     #[test]
     #[cfg(feature = "time")]
     fn test_time_duration_to_string() {
+        assert_eq!(
+            FancyDuration(time::Duration::new(0, 600)).to_string(),
+            "600ns"
+        );
+        assert_eq!(
+            FancyDuration(time::Duration::new(0, 600000)).to_string(),
+            "600us"
+        );
+        assert_eq!(
+            FancyDuration(time::Duration::new(0, 600000000)).to_string(),
+            "600ms"
+        );
         assert_eq!(
             FancyDuration(time::Duration::new(600, 0)).to_string(),
             "10m"
@@ -459,6 +477,18 @@ mod tests {
     #[test]
     #[cfg(feature = "chrono")]
     fn test_chrono_duration_to_string() {
+        assert_eq!(
+            FancyDuration(chrono::Duration::nanoseconds(600)).to_string(),
+            "600ns"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::microseconds(600)).to_string(),
+            "600us"
+        );
+        assert_eq!(
+            FancyDuration(chrono::Duration::milliseconds(600)).to_string(),
+            "600ms"
+        );
         assert_eq!(
             FancyDuration(chrono::Duration::seconds(600)).to_string(),
             "10m"
@@ -626,6 +656,7 @@ mod tests {
         }
 
         let duration_table = [
+            ("{\"duration\":\"10ns\"}", Duration::new(0, 10)),
             ("{\"duration\":\"10s\"}", Duration::new(10, 0)),
             ("{\"duration\":\"3m 5s\"}", Duration::new(185, 0)),
             (
@@ -648,6 +679,7 @@ mod tests {
             }
 
             let time_table = [
+                ("{\"duration\":\"10ns\"}", time::Duration::new(0, 10)),
                 ("{\"duration\":\"10s\"}", time::Duration::new(10, 0)),
                 ("{\"duration\":\"3m 5s\"}", time::Duration::new(185, 0)),
                 (
@@ -671,6 +703,7 @@ mod tests {
             }
 
             let chrono_table = [
+                ("{\"duration\":\"10ns\"}", chrono::Duration::nanoseconds(10)),
                 ("{\"duration\":\"10s\"}", chrono::Duration::seconds(10)),
                 ("{\"duration\":\"3m 5s\"}", chrono::Duration::seconds(185)),
                 (
