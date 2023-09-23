@@ -21,7 +21,7 @@ regex = "^1"
 chrono = { version = "^0.4", features = [ "serde" ], optional = true }
 
 [features]
-default = [ "time" ]
+default = [ ]
 time = [ "dep:time" ]
 chrono = [ "dep:chrono" ]
 
