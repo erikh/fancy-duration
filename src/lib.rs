@@ -30,14 +30,14 @@ use std::{marker::PhantomData, time::Duration};
 
 /// To implement a fancier duration, just have your duration return the number of nanoseconds as a
 /// part of the following method call, as well as a method to handle parsing.
-pub trait AsNanos: Sized {
-    fn as_ns(&self) -> i128;
+pub trait AsTimes: Sized {
+    fn as_times(&self) -> (u64, u64);
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error>;
 }
 
-impl AsNanos for Duration {
-    fn as_ns(&self) -> i128 {
-        self.as_nanos().try_into().unwrap()
+impl AsTimes for Duration {
+    fn as_times(&self) -> (u64, u64) {
+        (self.as_secs(), self.subsec_nanos() as u64)
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
@@ -47,9 +47,14 @@ impl AsNanos for Duration {
 }
 
 #[cfg(feature = "chrono")]
-impl AsNanos for chrono::Duration {
-    fn as_ns(&self) -> i128 {
-        self.num_nanoseconds().unwrap().try_into().unwrap()
+impl AsTimes for chrono::Duration {
+    fn as_times(&self) -> (u64, u64) {
+        (
+            self.num_seconds().try_into().unwrap(),
+            (self.num_nanoseconds().unwrap() / 1e9 as i64)
+                .try_into()
+                .unwrap(),
+        )
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
@@ -61,9 +66,12 @@ impl AsNanos for chrono::Duration {
 }
 
 #[cfg(feature = "time")]
-impl AsNanos for time::Duration {
-    fn as_ns(&self) -> i128 {
-        self.whole_nanoseconds() as i128
+impl AsTimes for time::Duration {
+    fn as_times(&self) -> (u64, u64) {
+        (
+            self.as_seconds_f64() as u64,
+            self.subsec_nanoseconds() as u64,
+        )
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
@@ -73,11 +81,11 @@ impl AsNanos for time::Duration {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct FancyDuration<D: AsNanos>(pub D);
+pub struct FancyDuration<D: AsTimes>(pub D);
 
 impl<D> FancyDuration<D>
 where
-    D: AsNanos,
+    D: AsTimes,
 {
     /// Construct a fancier duration!
     pub fn new(d: D) -> Self {
@@ -105,54 +113,54 @@ where
 
     /// Show the duration in a fancier format!
     fn format_internal(&self, pad: bool) -> String {
-        let mut time = self.0.as_ns();
+        let mut times = self.0.as_times();
 
-        if time == 0 {
+        if times.0 == 0 && times.1 == 0 {
             return "0".to_string();
         }
 
-        let years = time / 12 / 30 / 24 / 60 / 60 / 1e9 as i128;
-        time -= years * 12 * 30 * 24 * 60 * 60 * 1e9 as i128;
-        let months = time / 30 / 24 / 60 / 60 / 1e9 as i128;
-        time -= months * 30 * 24 * 60 * 60 * 1e9 as i128;
-        let weeks = time / 7 / 24 / 60 / 60 / 1e9 as i128;
-        time -= weeks * 7 * 24 * 60 * 60 * 1e9 as i128;
-        let days = time / 24 / 60 / 60 / 1e9 as i128;
-        time -= days * 24 * 60 * 60 * 1e9 as i128;
-        let hours = time / 60 / 60 / 1e9 as i128;
-        time -= hours * 60 * 60 * 1e9 as i128;
-        let minutes = time / 60 / 1e9 as i128;
-        time -= minutes * 60 * 1e9 as i128;
+        let years = times.0 / 12 / 30 / 24 / 60 / 60;
+        times.0 -= years * 12 * 30 * 24 * 60 * 60;
+        let months = times.0 / 30 / 24 / 60 / 60;
+        times.0 -= months * 30 * 24 * 60 * 60;
+        let weeks = times.0 / 7 / 24 / 60 / 60;
+        times.0 -= weeks * 7 * 24 * 60 * 60;
+        let days = times.0 / 24 / 60 / 60;
+        times.0 -= days * 24 * 60 * 60;
+        let hours = times.0 / 60 / 60;
+        times.0 -= hours * 60 * 60;
+        let minutes = times.0 / 60;
+        times.0 -= minutes * 60;
 
         let mut itoa = itoa::Buffer::new();
 
         // I should fix this someday
-        let s = if years >= 1 {
+        let s = if years > 0 {
             itoa.format(years).to_string() + "y" + if pad { " " } else { "" }
         } else {
             "".to_string()
-        } + &(if months >= 1 {
+        } + &(if months > 0 {
             itoa.format(months).to_string() + "m" + if pad { " " } else { "" }
         } else {
             "".to_string()
-        }) + &(if weeks >= 1 {
+        }) + &(if weeks > 0 {
             itoa.format(weeks).to_string() + "w" + if pad { " " } else { "" }
         } else {
             "".to_string()
-        }) + &(if days >= 1 {
+        }) + &(if days > 0 {
             itoa.format(days).to_string() + "d" + if pad { " " } else { "" }
         } else {
             "".to_string()
-        }) + &(if hours >= 1 {
+        }) + &(if hours > 0 {
             itoa.format(hours).to_string() + "h" + if pad { " " } else { "" }
         } else {
             "".to_string()
-        }) + &(if minutes >= 1 {
+        }) + &(if minutes > 0 {
             itoa.format(minutes).to_string() + "m" + if pad { " " } else { "" }
         } else {
             "".to_string()
-        }) + &(if time / 1e9 as i128 >= 1 {
-            itoa.format(time / 1e9 as i128).to_string() + "s"
+        }) + &(if times.0 > 0 {
+            itoa.format(times.0).to_string() + "s"
         } else {
             "".to_string()
         });
@@ -174,6 +182,18 @@ where
 
         for (value, suffix) in list.iter().rev() {
             match *suffix {
+                "ns" => {
+                    let result: u64 = value.parse()?;
+                    subseconds += result;
+                }
+                "ms" => {
+                    let result: u64 = value.parse()?;
+                    subseconds += result / 1e5 as u64;
+                }
+                "us" => {
+                    let result: u64 = value.parse()?;
+                    subseconds += result / 1e3 as u64;
+                }
                 "s" => {
                     let result: u64 = value.parse()?;
                     seconds += result;
@@ -217,7 +237,7 @@ where
 
 impl<D> ToString for FancyDuration<D>
 where
-    D: AsNanos,
+    D: AsTimes,
 {
     fn to_string(&self) -> String {
         self.format()
@@ -226,7 +246,7 @@ where
 
 impl<D> Serialize for FancyDuration<D>
 where
-    D: AsNanos,
+    D: AsTimes,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -236,11 +256,11 @@ where
     }
 }
 
-struct FancyDurationVisitor<D: AsNanos>(PhantomData<D>);
+struct FancyDurationVisitor<D: AsTimes>(PhantomData<D>);
 
 impl<D> Visitor<'_> for FancyDurationVisitor<D>
 where
-    D: AsNanos,
+    D: AsTimes,
 {
     type Value = FancyDuration<D>;
 
@@ -261,7 +281,7 @@ where
 
 impl<'de, T> Deserialize<'de> for FancyDuration<T>
 where
-    T: AsNanos,
+    T: AsTimes,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
