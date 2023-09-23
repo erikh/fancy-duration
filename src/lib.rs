@@ -42,10 +42,15 @@
 use serde::{de::Visitor, Deserialize, Serialize};
 use std::{marker::PhantomData, time::Duration};
 
-/// To implement a fancier duration, just have your duration return the seconds and nanoseconds (in
-/// a tuple) as a part of the following method call, as well as a method to handle parsing.
+/// AsTimes is the trait that allows [FancyDuration] to represent durations. Implementing these
+/// methods will allow any compatible type to work with FancyDuration.
 pub trait AsTimes: Sized {
+    /// To implement a fancier duration, just have your duration return the seconds and nanoseconds (in
+    /// a tuple) as a part of the following method call, as well as a method to handle parsing. The
+    /// nanoseconds value should just represent the subsecond count, not the seconds.
     fn as_times(&self) -> (u64, u64);
+    /// This function implements parsing to return the inner duration. [FancyDuration::parse_to_ns]
+    /// is the standard parser and provides you with data to construct most duration types.
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error>;
 }
 
@@ -105,6 +110,53 @@ impl AsTimes for time::Duration {
     }
 }
 
+/// A [FancyDuration] contains a duration of type that implements [AsTimes]. It is capable of that
+/// point at parsing strings as well as returning the duration value encapsulated. If included in a
+/// serde serializing or deserializing workflow, it will automatically construct the appropriate
+/// duration as a part of the process.
+///
+/// Support for [time] and [chrono] are available as a part of this library via feature flags.
+///
+/// A duration is "human-readable" when it follows the following format:
+///
+/// ```ignore
+/// <count><timespec>...
+/// ```
+///
+/// This pattern repeats in an expected and prescribed order of precedence based on what duration
+/// is supplied. Certain durations are order-dependent (like months and minutes), but most are not;
+/// that said it should be desired to represent your durations in precedence order. If you express
+/// standard formatting, each unit is separated by whitespace, such as "2m 5s 30ms", compact
+/// formatting removes the whitespace: "2m5s30ms".
+///
+/// `count` is simply an integer value with no leading zero-padding. `timespec` is a one or two
+/// character identifier that specifies the unit of time the count represents. The following
+/// timespecs are supported, and more may be added in the future based on demand.
+///
+/// The order here is precedence-order. So to express this properly, one might say "5y2d30m" which
+/// means "5 years, 2 days and 30 minutes", but "5y30m2d" means "5 years, 30 months, and 2 days".
+///
+/// - y: years
+/// - m: months (must appear before `minutes`)
+/// - w: weeks
+/// - d: days
+/// - h: hours
+/// - m: minutes (must appear after `months`)
+/// - s: seconds
+/// - ms: milliseconds
+/// - us: microseconds
+/// - ns: nanoseconds
+///
+/// Simplifications:
+///
+/// Some time units have been simplified:
+///
+/// - Years is 365 days
+/// - Months is 30 days
+///
+/// These durations do not account for variations in the potential unit based on the current time.
+/// Perhaps in a future release.
+///
 #[derive(Clone, Debug, PartialEq)]
 pub struct FancyDuration<D: AsTimes>(pub D);
 
@@ -113,10 +165,14 @@ where
     D: AsTimes,
 {
     /// Construct a fancier duration!
+    ///
+    /// Accept input of a Duration type that implements [AsTimes]. From here, strings containing
+    /// human-friendly durations can be constructed, or the inner duration can be retrieved.
     pub fn new(d: D) -> Self {
         Self(d)
     }
 
+    /// Retrieve the inner duration.
     pub fn duration(&self) -> D
     where
         D: Clone,
@@ -124,19 +180,24 @@ where
         self.0.clone()
     }
 
+    /// Parse a string that contains a human-readable duration. See [FancyDuration] for more
+    /// information on how times are represented.
     pub fn parse(s: &str) -> Result<Self, anyhow::Error> {
         Ok(FancyDuration::new(D::parse_to_duration(s)?))
     }
 
+    /// Supply the standard formatted human-readable representation of the duration. This format
+    /// contains whitespace.
     pub fn format(&self) -> String {
         self.format_internal(true)
     }
 
+    /// Supply the compact formatted human-readable representation of the duration. This format
+    /// does not contain whitespace.
     pub fn format_compact(&self) -> String {
         self.format_internal(false)
     }
 
-    /// Show the duration in a fancier format!
     fn format_internal(&self, pad: bool) -> String {
         let mut times = self.0.as_times();
 
@@ -210,7 +271,10 @@ where
         s.trim_end().to_string()
     }
 
-    fn parse_to_ns(s: &str) -> Result<(u64, u64), anyhow::Error> {
+    /// Parse a string in fancy duration format to a tuple of (seconds, nanoseconds). Nanoseconds
+    /// is simply a subsecond count and does not contain the seconds represented as nanoseconds. If
+    /// a parsing error occurs that will appear in the result.
+    pub fn parse_to_ns(s: &str) -> Result<(u64, u64), anyhow::Error> {
         let mut subseconds: u64 = 0;
         let mut seconds: u64 = 0;
         let mut past_minutes = false;
