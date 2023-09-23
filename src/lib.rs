@@ -51,7 +51,15 @@ pub trait AsTimes: Sized {
 
 impl AsTimes for Duration {
     fn as_times(&self) -> (u64, u64) {
-        (self.as_secs(), self.subsec_nanos() as u64)
+        let secs = self.as_secs();
+        let nanos = self.as_nanos();
+
+        (
+            secs,
+            (nanos - (nanos / 1e9 as u128) * 1e9 as u128)
+                .try_into()
+                .unwrap(),
+        )
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
@@ -63,9 +71,12 @@ impl AsTimes for Duration {
 #[cfg(feature = "chrono")]
 impl AsTimes for chrono::Duration {
     fn as_times(&self) -> (u64, u64) {
+        let secs = self.num_seconds();
+        let nanos = self.num_nanoseconds().unwrap();
+
         (
-            self.num_seconds().try_into().unwrap(),
-            (self.num_nanoseconds().unwrap() / 1e9 as i64)
+            secs.try_into().unwrap(),
+            (nanos - (nanos / 1e9 as i64) * 1e9 as i64)
                 .try_into()
                 .unwrap(),
         )
@@ -146,6 +157,11 @@ where
         let minutes = times.0 / 60;
         times.0 -= minutes * 60;
 
+        let ms = times.1 / 1e6 as u64;
+        times.1 -= ms * 1e6 as u64;
+        let us = times.1 / 1e3 as u64;
+        times.1 -= us * 1e3 as u64;
+
         let mut itoa = itoa::Buffer::new();
 
         // I should fix this someday
@@ -174,7 +190,19 @@ where
         } else {
             "".to_string()
         }) + &(if times.0 > 0 {
-            itoa.format(times.0).to_string() + "s"
+            itoa.format(times.0).to_string() + "s" + if pad { " " } else { "" }
+        } else {
+            "".to_string()
+        }) + &(if ms > 0 {
+            itoa.format(ms).to_string() + "ms" + if pad { " " } else { "" }
+        } else {
+            "".to_string()
+        }) + &(if us > 0 {
+            itoa.format(us).to_string() + "us" + if pad { " " } else { "" }
+        } else {
+            "".to_string()
+        }) + &(if times.1 > 0 {
+            itoa.format(times.1).to_string() + "ns" + if pad { " " } else { "" }
         } else {
             "".to_string()
         });
@@ -202,11 +230,11 @@ where
                 }
                 "ms" => {
                     let result: u64 = value.parse()?;
-                    subseconds += result / 1e5 as u64;
+                    subseconds += result * 1e6 as u64;
                 }
                 "us" => {
                     let result: u64 = value.parse()?;
-                    subseconds += result / 1e3 as u64;
+                    subseconds += result * 1e3 as u64;
                 }
                 "s" => {
                     let result: u64 = value.parse()?;
@@ -496,12 +524,16 @@ mod tests {
     #[test]
     fn test_parse_duration() {
         let duration_table = [
+            ("1m 10ms", Duration::new(60, 10000000)),
+            ("1h 30us", Duration::new(60 * 60, 30000)),
+            ("1d 30ns", Duration::new(60 * 60 * 24, 30)),
             ("10s", Duration::new(10, 0)),
             ("3m 5s", Duration::new(185, 0)),
             ("3m 2w 2d 10m 10s", Duration::new(9159010, 0)),
         ];
 
         let compact_duration_table = [
+            ("10s30ns", Duration::new(10, 30)),
             ("3m5s", Duration::new(185, 0)),
             ("3m2w2d10m10s", Duration::new(9159010, 0)),
         ];
@@ -521,6 +553,9 @@ mod tests {
         #[cfg(feature = "time")]
         {
             let time_table = [
+                ("1m 10ms", time::Duration::new(60, 10000000)),
+                ("1h 30us", time::Duration::new(60 * 60, 30000)),
+                ("1d 30ns", time::Duration::new(60 * 60 * 24, 30)),
                 ("10s", time::Duration::new(10, 0)),
                 ("3m 5s", time::Duration::new(185, 0)),
                 ("3m 2w 2d 10m 10s", time::Duration::new(9159010, 0)),
@@ -546,6 +581,18 @@ mod tests {
         #[cfg(feature = "chrono")]
         {
             let chrono_table = [
+                (
+                    "1m 10ms",
+                    chrono::Duration::seconds(60) + chrono::Duration::milliseconds(10),
+                ),
+                (
+                    "1h 30us",
+                    chrono::Duration::hours(1) + chrono::Duration::microseconds(30),
+                ),
+                (
+                    "1d 30ns",
+                    chrono::Duration::days(1) + chrono::Duration::nanoseconds(30),
+                ),
                 ("10s", chrono::Duration::seconds(10)),
                 ("3m 5s", chrono::Duration::seconds(185)),
                 ("3m 2w 2d 10m 10s", chrono::Duration::seconds(9159010)),
