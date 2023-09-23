@@ -1,7 +1,7 @@
 # Fancier Durations now in an easily consumable library
 
 Using this library is very simple (but here are the
-[docs](https://docs.rs/fancy_duration):
+[docs](https://docs.rs/fancy_duration)):
 
 ```
 use std::time::Duration;
