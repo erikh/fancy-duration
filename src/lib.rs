@@ -42,8 +42,8 @@
 use serde::{de::Visitor, Deserialize, Serialize};
 use std::{marker::PhantomData, time::Duration};
 
-/// To implement a fancier duration, just have your duration return the number of nanoseconds as a
-/// part of the following method call, as well as a method to handle parsing.
+/// To implement a fancier duration, just have your duration return the seconds and nanoseconds (in
+/// a tuple) as a part of the following method call, as well as a method to handle parsing.
 pub trait AsTimes: Sized {
     fn as_times(&self) -> (u64, u64);
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error>;
