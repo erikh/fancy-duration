@@ -28,59 +28,56 @@
 use serde::{de::Visitor, Deserialize, Serialize};
 use std::{marker::PhantomData, time::Duration};
 
-/// To implement a fancier duration, just have your duration return the number of seconds as a part
-/// of the following method call, as well as a method to handle parsing.
-pub trait AsSecs: Sized {
-    fn as_secs(&self) -> i64;
+/// To implement a fancier duration, just have your duration return the number of nanoseconds as a
+/// part of the following method call, as well as a method to handle parsing.
+pub trait AsNanos: Sized {
+    fn as_ns(&self) -> i128;
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error>;
 }
 
-impl AsSecs for Duration {
-    fn as_secs(&self) -> i64 {
-        self.as_secs_f64() as i64
+impl AsNanos for Duration {
+    fn as_ns(&self) -> i128 {
+        self.as_nanos().try_into().unwrap()
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
-        Ok(Duration::new(
-            FancyDuration::<Duration>::parse_to_seconds(s).map(|s| s.abs() as u64)?,
-            0,
-        ))
+        let ns = FancyDuration::<Duration>::parse_to_ns(s)?;
+        Ok(Duration::new(ns.0, ns.1.try_into()?))
     }
 }
 
 #[cfg(feature = "chrono")]
-impl AsSecs for chrono::Duration {
-    fn as_secs(&self) -> i64 {
-        self.num_seconds() as i64
+impl AsNanos for chrono::Duration {
+    fn as_ns(&self) -> i128 {
+        self.num_nanoseconds().unwrap().try_into().unwrap()
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
-        Ok(chrono::Duration::seconds(
-            FancyDuration::<chrono::Duration>::parse_to_seconds(s)?,
-        ))
+        let ns = FancyDuration::<chrono::Duration>::parse_to_ns(s)?;
+
+        Ok(chrono::Duration::seconds(ns.0.try_into()?)
+            + chrono::Duration::nanoseconds(ns.1.try_into()?))
     }
 }
 
 #[cfg(feature = "time")]
-impl AsSecs for time::Duration {
-    fn as_secs(&self) -> i64 {
-        self.whole_seconds() as i64
+impl AsNanos for time::Duration {
+    fn as_ns(&self) -> i128 {
+        self.whole_nanoseconds() as i128
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
-        Ok(time::Duration::new(
-            FancyDuration::<time::Duration>::parse_to_seconds(s)?,
-            0,
-        ))
+        let ns = FancyDuration::<Duration>::parse_to_ns(s)?;
+        Ok(time::Duration::new(ns.0.try_into()?, ns.1.try_into()?))
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct FancyDuration<D: AsSecs>(pub D);
+pub struct FancyDuration<D: AsNanos>(pub D);
 
 impl<D> FancyDuration<D>
 where
-    D: AsSecs,
+    D: AsNanos,
 {
     /// Construct a fancier duration!
     pub fn new(d: D) -> Self {
@@ -108,24 +105,24 @@ where
 
     /// Show the duration in a fancier format!
     fn format_internal(&self, pad: bool) -> String {
-        let mut time = self.0.as_secs();
+        let mut time = self.0.as_ns();
 
         if time == 0 {
             return "0".to_string();
         }
 
-        let years = time / 12 / 30 / 24 / 60 / 60;
-        time -= years * 12 * 30 * 24 * 60 * 60;
-        let months = time / 30 / 24 / 60 / 60;
-        time -= months * 30 * 24 * 60 * 60;
-        let weeks = time / 7 / 24 / 60 / 60;
-        time -= weeks * 7 * 24 * 60 * 60;
-        let days = time / 24 / 60 / 60;
-        time -= days * 24 * 60 * 60;
-        let hours = time / 60 / 60;
-        time -= hours * 60 * 60;
-        let minutes = time / 60;
-        time -= minutes * 60;
+        let years = time / 12 / 30 / 24 / 60 / 60 / 1e9 as i128;
+        time -= years * 12 * 30 * 24 * 60 * 60 * 1e9 as i128;
+        let months = time / 30 / 24 / 60 / 60 / 1e9 as i128;
+        time -= months * 30 * 24 * 60 * 60 * 1e9 as i128;
+        let weeks = time / 7 / 24 / 60 / 60 / 1e9 as i128;
+        time -= weeks * 7 * 24 * 60 * 60 * 1e9 as i128;
+        let days = time / 24 / 60 / 60 / 1e9 as i128;
+        time -= days * 24 * 60 * 60 * 1e9 as i128;
+        let hours = time / 60 / 60 / 1e9 as i128;
+        time -= hours * 60 * 60 * 1e9 as i128;
+        let minutes = time / 60 / 1e9 as i128;
+        time -= minutes * 60 * 1e9 as i128;
 
         let mut itoa = itoa::Buffer::new();
 
@@ -154,8 +151,8 @@ where
             itoa.format(minutes).to_string() + "m" + if pad { " " } else { "" }
         } else {
             "".to_string()
-        }) + &(if time >= 1 {
-            itoa.format(time).to_string() + "s"
+        }) + &(if time / 1e9 as i128 >= 1 {
+            itoa.format(time / 1e9 as i128).to_string() + "s"
         } else {
             "".to_string()
         });
@@ -163,73 +160,64 @@ where
         s.trim_end().to_string()
     }
 
-    fn parse_to_seconds(s: &str) -> Result<i64, anyhow::Error> {
-        let mut secs: i64 = 0;
+    fn parse_to_ns(s: &str) -> Result<(u64, u64), anyhow::Error> {
+        let mut subseconds: u64 = 0;
+        let mut seconds: u64 = 0;
         let mut past_minutes = false;
 
-        let rx = regex::Regex::new(r#"([0-9]+[a-zA-Z])\s*"#)?;
-        let list: Vec<&str> = rx
-            .captures_iter(s)
-            .flat_map(|c| {
-                c.iter()
-                    .skip(1)
-                    .filter_map(|s| s.map(|h| h.as_str()))
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+        let rx = regex::Regex::new(r#"([0-9]+)([a-zA-Z]{1,2})\s*"#)?;
+        let mut list: Vec<(&str, &str)> = Vec::new();
 
-        for item in list.iter().rev() {
-            match item.chars().last() {
-                Some('s') => {
-                    let item = item.strip_suffix('s').unwrap();
-                    let result: i64 = item.parse()?;
-                    secs += result
+        for item in rx.captures_iter(s) {
+            list.push((item.get(1).unwrap().as_str(), item.get(2).unwrap().as_str()));
+        }
+
+        for (value, suffix) in list.iter().rev() {
+            match *suffix {
+                "s" => {
+                    let result: u64 = value.parse()?;
+                    seconds += result;
                 }
-                Some('m') => {
-                    let item = item.strip_suffix('m').unwrap();
-                    let result: i64 = item.parse()?;
-                    secs += if past_minutes {
+                "m" => {
+                    let result: u64 = value.parse()?;
+                    seconds += if past_minutes {
                         result * 60 * 60 * 24 * 30
                     } else {
                         past_minutes = true;
                         result * 60
                     }
                 }
-                Some('h') => {
+                "h" => {
                     past_minutes = true;
-                    let item = item.strip_suffix('h').unwrap();
-                    let result: i64 = item.parse()?;
-                    secs += result * 60 * 60;
+                    let result: u64 = value.parse()?;
+                    seconds += result * 60 * 60
                 }
-                Some('d') => {
+                "d" => {
                     past_minutes = true;
-                    let item = item.strip_suffix('d').unwrap();
-                    let result: i64 = item.parse()?;
-                    secs += result * 60 * 60 * 24;
+                    let result: u64 = value.parse()?;
+                    seconds += result * 60 * 60 * 24
                 }
-                Some('w') => {
+                "w" => {
                     past_minutes = true;
-                    let item = item.strip_suffix('w').unwrap();
-                    let result: i64 = item.parse()?;
-                    secs += result * 60 * 60 * 24 * 7;
+                    let result: u64 = value.parse()?;
+                    seconds += result * 60 * 60 * 24 * 7
                 }
-                Some('y') => {
+                "y" => {
                     past_minutes = true;
-                    let item = item.strip_suffix('y').unwrap();
-                    let result: i64 = item.parse()?;
-                    secs += result * 12 * 30 * 60 * 60 * 24;
+                    let result: u64 = value.parse()?;
+                    seconds += result * 12 * 30 * 60 * 60 * 24
                 }
-                Some(_) | None => {}
+                _ => {}
             }
         }
 
-        Ok(secs)
+        Ok((seconds, subseconds))
     }
 }
 
 impl<D> ToString for FancyDuration<D>
 where
-    D: AsSecs,
+    D: AsNanos,
 {
     fn to_string(&self) -> String {
         self.format()
@@ -238,7 +226,7 @@ where
 
 impl<D> Serialize for FancyDuration<D>
 where
-    D: AsSecs,
+    D: AsNanos,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -248,11 +236,11 @@ where
     }
 }
 
-struct FancyDurationVisitor<D: AsSecs>(PhantomData<D>);
+struct FancyDurationVisitor<D: AsNanos>(PhantomData<D>);
 
 impl<D> Visitor<'_> for FancyDurationVisitor<D>
 where
-    D: AsSecs,
+    D: AsNanos,
 {
     type Value = FancyDuration<D>;
 
@@ -273,7 +261,7 @@ where
 
 impl<'de, T> Deserialize<'de> for FancyDuration<T>
 where
-    T: AsSecs,
+    T: AsNanos,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
