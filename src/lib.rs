@@ -25,7 +25,7 @@
 //!
 //!     #[cfg(feature = "chrono")]
 //!     {
-//!         // also works with time::Duration from the `time` crate
+//!         // also works with chrono!
 //!         assert_eq!(FancyDuration(chrono::Duration::seconds(20)).to_string(), "20s");
 //!         assert_eq!(FancyDuration(chrono::Duration::seconds(600)).to_string(), "10m");
 //!         assert_eq!(FancyDuration(chrono::Duration::seconds(120)).to_string(), "2m");
