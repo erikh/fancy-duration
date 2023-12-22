@@ -5,8 +5,6 @@
 //! serialization into and from string types with serde. Time support starts in years and funnels
 //! down to nanoseconds.
 //!
-//! Here are the [docs](https://docs.rs/fancy_duration)).
-//!
 //! What follows are some usage examples. You can either wrap your duration-like type in a
 //! FancyDuration struct, or use types which allow for monkeypatched methods that allow you to work
 //! directly on the target type. For example, use AsFancyDuration to inject fancy_duration calls to
