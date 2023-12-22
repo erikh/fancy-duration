@@ -42,6 +42,34 @@
 use serde::{de::Visitor, Deserialize, Serialize};
 use std::{marker::PhantomData, time::Duration};
 
+pub trait AsFancyDuration<T>
+where
+    Self: Sized,
+    T: AsTimes,
+{
+    fn fancy_duration(&self) -> FancyDuration<T>;
+}
+
+impl AsFancyDuration<Duration> for Duration {
+    fn fancy_duration(&self) -> FancyDuration<Duration> {
+        FancyDuration::new(self.clone())
+    }
+}
+
+#[cfg(feature = "time")]
+impl AsFancyDuration<time::Duration> for time::Duration {
+    fn fancy_duration(&self) -> FancyDuration<time::Duration> {
+        FancyDuration::new(self.clone())
+    }
+}
+
+#[cfg(feature = "chrono")]
+impl AsFancyDuration<chrono::Duration> for chrono::Duration {
+    fn fancy_duration(&self) -> FancyDuration<chrono::Duration> {
+        FancyDuration::new(self.clone())
+    }
+}
+
 /// AsTimes is the trait that allows [FancyDuration] to represent durations. Implementing these
 /// methods will allow any compatible type to work with FancyDuration.
 pub trait AsTimes: Sized {
@@ -402,6 +430,25 @@ mod tests {
     use std::time::Duration;
 
     use crate::FancyDuration;
+
+    #[test]
+    fn test_fancy_duration_call() {
+        use super::AsFancyDuration;
+
+        assert_eq!(Duration::new(0, 600).fancy_duration().to_string(), "600ns");
+        #[cfg(feature = "time")]
+        assert_eq!(
+            time::Duration::new(0, 600).fancy_duration().to_string(),
+            "600ns"
+        );
+        #[cfg(feature = "chrono")]
+        assert_eq!(
+            chrono::Duration::nanoseconds(600)
+                .fancy_duration()
+                .to_string(),
+            "600ns"
+        );
+    }
 
     #[test]
     fn test_duration_to_string() {
