@@ -50,6 +50,20 @@ where
     fn fancy_duration(&self) -> FancyDuration<T>;
 }
 
+pub trait ParseFancyDuration<T>
+where
+    Self: Sized,
+    T: AsTimes,
+{
+    fn parse_fancy_duration(s: String) -> Result<Self, anyhow::Error>;
+}
+
+impl ParseFancyDuration<Duration> for Duration {
+    fn parse_fancy_duration(s: String) -> Result<Self, anyhow::Error> {
+        Ok(FancyDuration::<Duration>::parse(&s)?.duration())
+    }
+}
+
 impl AsFancyDuration<Duration> for Duration {
     fn fancy_duration(&self) -> FancyDuration<Duration> {
         FancyDuration::new(self.clone())
@@ -57,9 +71,23 @@ impl AsFancyDuration<Duration> for Duration {
 }
 
 #[cfg(feature = "time")]
+impl ParseFancyDuration<time::Duration> for time::Duration {
+    fn parse_fancy_duration(s: String) -> Result<Self, anyhow::Error> {
+        Ok(FancyDuration::<time::Duration>::parse(&s)?.duration())
+    }
+}
+
+#[cfg(feature = "time")]
 impl AsFancyDuration<time::Duration> for time::Duration {
     fn fancy_duration(&self) -> FancyDuration<time::Duration> {
         FancyDuration::new(self.clone())
+    }
+}
+
+#[cfg(feature = "chrono")]
+impl ParseFancyDuration<chrono::Duration> for chrono::Duration {
+    fn parse_fancy_duration(s: String) -> Result<Self, anyhow::Error> {
+        Ok(FancyDuration::<chrono::Duration>::parse(&s)?.duration())
     }
 }
 
@@ -433,7 +461,7 @@ mod tests {
 
     #[test]
     fn test_fancy_duration_call() {
-        use super::AsFancyDuration;
+        use super::{AsFancyDuration, ParseFancyDuration};
 
         assert_eq!(Duration::new(0, 600).fancy_duration().to_string(), "600ns");
         #[cfg(feature = "time")]
@@ -447,6 +475,20 @@ mod tests {
                 .fancy_duration()
                 .to_string(),
             "600ns"
+        );
+        assert_eq!(
+            Duration::parse_fancy_duration("600ns".to_string()).unwrap(),
+            Duration::new(0, 600)
+        );
+        #[cfg(feature = "time")]
+        assert_eq!(
+            time::Duration::parse_fancy_duration("600ns".to_string()).unwrap(),
+            time::Duration::new(0, 600)
+        );
+        #[cfg(feature = "chrono")]
+        assert_eq!(
+            chrono::Duration::parse_fancy_duration("600ns".to_string()).unwrap(),
+            chrono::Duration::nanoseconds(600)
         );
     }
 
