@@ -1,3 +1,5 @@
+- 0.7.1:
+    - Implemented std::fmt::Display instead of ToString for more versatility
 - 0.7.0:
     - Trait definitions for AsFancyDuration and ParseFancyDuration which allow the decoration of other types.
 - Older versions:
