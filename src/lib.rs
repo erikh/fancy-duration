@@ -53,19 +53,28 @@
 use serde::{de::Visitor, Deserialize, Serialize};
 use std::{marker::PhantomData, time::Duration};
 
+/// Implement AsFancyDuration for your Duration type, it will annotate those types with the
+/// `fancy_duration` function which allows trivial and explicit conversion into a fancy duration.
 pub trait AsFancyDuration<T>
 where
     Self: Sized,
     T: AsTimes,
 {
+    /// Convert T to a fancy_duration, which can be converted to a string representation of the
+    /// duration.
     fn fancy_duration(&self) -> FancyDuration<T>;
 }
 
+/// Implement ParseFancyDuration for your Duration type to implement parsing constructors for your
+/// Duration. A more generic `parse` implementation for String and &str may come in a future
+/// version.
 pub trait ParseFancyDuration<T>
 where
     Self: Sized,
     T: AsTimes,
 {
+    /// Parse T from String, which allows the construction of a T from the fancy duration specified
+    /// in the string.
     fn parse_fancy_duration(s: String) -> Result<Self, anyhow::Error>;
 }
 
