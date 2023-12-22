@@ -417,12 +417,12 @@ where
     }
 }
 
-impl<D> ToString for FancyDuration<D>
+impl<D> std::fmt::Display for FancyDuration<D>
 where
     D: AsTimes,
 {
-    fn to_string(&self) -> String {
-        self.format()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.format())
     }
 }
 
