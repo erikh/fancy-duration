@@ -16,6 +16,7 @@ pub fn main() {
     assert_eq!(FancyDuration::<Duration>::parse("3m 5s").unwrap().duration(), Duration::new(185, 0));
     assert_eq!(FancyDuration(Duration::new(185, 0)).to_string(), "3m 5s");
 
+    // these traits are also implemented for chrono and time
     use fancy_duration::{ParseFancyDuration, AsFancyDuration};
     assert_eq!(Duration::new(20, 0).fancy_duration().to_string(), "20s");
     assert_eq!(Duration::new(600, 0).fancy_duration().to_string(), "10m");
