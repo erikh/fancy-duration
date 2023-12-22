@@ -22,7 +22,7 @@ pub fn main() {
     assert_eq!(Duration::new(600, 0).fancy_duration().to_string(), "10m");
     assert_eq!(Duration::new(120, 0).fancy_duration().to_string(), "2m");
     assert_eq!(Duration::new(185, 0).fancy_duration().to_string(), "3m 5s");
-    assert_eq!(Duration::parse_fancy_duration("3m 5s").unwrap(), Duration::new(185, 0));
+    assert_eq!(Duration::parse_fancy_duration("3m 5s".to_string()).unwrap(), Duration::new(185, 0));
     assert_eq!(Duration::new(185, 0).fancy_duration().to_string(), "3m 5s");
 
     #[cfg(feature = "time")]
