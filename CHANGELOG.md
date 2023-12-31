@@ -1,3 +1,5 @@
+- 0.7.2:
+    - Implemented std::str::FromStr (implements parse)
 - 0.7.1:
     - Implemented std::fmt::Display instead of ToString for more versatility
 - 0.7.0:
