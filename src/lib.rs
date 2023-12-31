@@ -99,6 +99,17 @@ impl AsFancyDuration<Duration> for Duration {
     }
 }
 
+impl<D> std::str::FromStr for FancyDuration<D>
+where
+    D: AsTimes,
+{
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
+    }
+}
+
 #[cfg(feature = "time")]
 impl ParseFancyDuration<time::Duration> for time::Duration {
     fn parse_fancy_duration(s: String) -> Result<Self, anyhow::Error> {
