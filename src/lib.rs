@@ -5,6 +5,11 @@
 //! serialization into and from string types with serde. Time support starts in years and funnels
 //! down to nanoseconds.
 //!
+//! Feature matrix:
+//!   - serde: enables serde support including serialization and deseralization from strings
+//!   - time: enables traits that implement fancy duration features for the `time` crate
+//!   - chrono: enables traits that implement fancy duration features for the `chrono` crate
+//!
 //! What follows are some usage examples. You can either wrap your duration-like type in a
 //! FancyDuration struct, or use types which allow for monkeypatched methods that allow you to work
 //! directly on the target type. For example, use AsFancyDuration to inject fancy_duration calls to
@@ -59,8 +64,11 @@
 //! }
 //! ```
 
+#[cfg(feature = "serde")]
 use serde::{de::Visitor, Deserialize, Serialize};
-use std::{marker::PhantomData, time::Duration};
+#[cfg(feature = "serde")]
+use std::marker::PhantomData;
+use std::time::Duration;
 
 /// Implement AsFancyDuration for your Duration type, it will annotate those types with the
 /// `fancy_duration` function which allows trivial and explicit conversion into a fancy duration.
@@ -446,6 +454,7 @@ where
     }
 }
 
+#[cfg(feature = "serde")]
 impl<D> Serialize for FancyDuration<D>
 where
     D: AsTimes,
@@ -458,8 +467,10 @@ where
     }
 }
 
+#[cfg(feature = "serde")]
 struct FancyDurationVisitor<D: AsTimes>(PhantomData<D>);
 
+#[cfg(feature = "serde")]
 impl<D> Visitor<'_> for FancyDurationVisitor<D>
 where
     D: AsTimes,
@@ -481,6 +492,7 @@ where
     }
 }
 
+#[cfg(feature = "serde")]
 impl<'de, T> Deserialize<'de> for FancyDuration<T>
 where
     T: AsTimes,
@@ -839,6 +851,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "serde")]
     #[test]
     fn test_serde() {
         use serde::{Deserialize, Serialize};
