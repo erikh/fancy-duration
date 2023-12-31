@@ -1,3 +1,6 @@
+- 0.8.0:
+    - `serde` is now an optional feature that is off by default.
+    - Upgraded criterion.
 - 0.7.2:
     - Implemented std::str::FromStr (implements parse)
 - 0.7.1:
