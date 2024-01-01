@@ -5,7 +5,7 @@ A "fancy duration" is a text description of the duration. For example, "1h 20m 3
 Here are the [docs](https://docs.rs/fancy_duration).
 
 What follows are some usage examples. You can either wrap your duration-like type in a FancyDuration struct, or use types which allow for monkeypatched methods that allow you to work directly on the target type. For example, use AsFancyDuration to inject fancy_duration calls to perform the construction (which can be formatted or converted to string) and ParseFancyDuration to inject parse_fancy_duration constructors to accept strings into your favorite type. std::time::Duration, time::Duration, and chrono::Duration are all supported (some features may need to be required) and you can make more types eligible by implementing the AsTimes trait.
-```
+```rust
 use std::time::Duration;
 use fancy_duration::FancyDuration;
 
