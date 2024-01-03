@@ -156,6 +156,7 @@ pub trait AsTimes: Sized {
     /// This function implements parsing to return the inner duration. [FancyDuration::parse_to_ns]
     /// is the standard parser and provides you with data to construct most duration types.
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error>;
+    /// Yield one of this implementing duration from a pair of (seconds, nanoseconds).
     fn from_times(&self, s: u64, ns: u64) -> Self;
 }
 
