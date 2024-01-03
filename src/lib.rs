@@ -75,7 +75,7 @@ use std::time::Duration;
 pub trait AsFancyDuration<T>
 where
     Self: Sized,
-    T: AsTimes,
+    T: AsTimes + Clone,
 {
     /// Convert T to a fancy_duration, which can be converted to a string representation of the
     /// duration.
@@ -88,7 +88,7 @@ where
 pub trait ParseFancyDuration<T>
 where
     Self: Sized,
-    T: AsTimes,
+    T: AsTimes + Clone,
 {
     /// Parse T from String, which allows the construction of a T from the fancy duration specified
     /// in the string.
@@ -109,7 +109,7 @@ impl AsFancyDuration<Duration> for Duration {
 
 impl<D> std::str::FromStr for FancyDuration<D>
 where
-    D: AsTimes,
+    D: AsTimes + Clone,
 {
     type Err = anyhow::Error;
 
@@ -156,6 +156,7 @@ pub trait AsTimes: Sized {
     /// This function implements parsing to return the inner duration. [FancyDuration::parse_to_ns]
     /// is the standard parser and provides you with data to construct most duration types.
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error>;
+    fn from_times(&self, s: u64, ns: u64) -> Self;
 }
 
 impl AsTimes for Duration {
@@ -174,6 +175,10 @@ impl AsTimes for Duration {
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
         let ns = FancyDuration::<Duration>::parse_to_ns(s)?;
         Ok(Duration::new(ns.0, ns.1.try_into()?))
+    }
+
+    fn from_times(&self, s: u64, ns: u64) -> Self {
+        Duration::new(s, (ns as f64 * 0.01).trunc() as u32)
     }
 }
 
@@ -197,6 +202,11 @@ impl AsTimes for chrono::Duration {
         Ok(chrono::Duration::seconds(ns.0.try_into()?)
             + chrono::Duration::nanoseconds(ns.1.try_into()?))
     }
+
+    fn from_times(&self, s: u64, ns: u64) -> Self {
+        chrono::Duration::seconds(s.try_into().unwrap())
+            + chrono::Duration::nanoseconds(ns.try_into().unwrap())
+    }
 }
 
 #[cfg(feature = "time")]
@@ -211,6 +221,10 @@ impl AsTimes for time::Duration {
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
         let ns = FancyDuration::<Duration>::parse_to_ns(s)?;
         Ok(time::Duration::new(ns.0.try_into()?, ns.1.try_into()?))
+    }
+
+    fn from_times(&self, s: u64, ns: u64) -> Self {
+        time::Duration::new(s.try_into().unwrap(), ns.try_into().unwrap())
     }
 }
 
@@ -260,6 +274,54 @@ impl DurationBreakdown {
             microseconds: us,
             nanoseconds: ns,
         }
+    }
+
+    pub(crate) fn round(&self, mut limit: usize) -> Self {
+        let mut obj = self.clone();
+        let mut limit_started = false;
+
+        for val in [
+            &mut obj.years,
+            &mut obj.months,
+            &mut obj.weeks,
+            &mut obj.days,
+            &mut obj.hours,
+            &mut obj.minutes,
+            &mut obj.seconds,
+            &mut obj.milliseconds,
+            &mut obj.microseconds,
+            &mut obj.nanoseconds,
+        ] {
+            if limit_started || *val > 0 {
+                limit_started = true;
+
+                if limit == 0 {
+                    *val = 0
+                }
+
+                if limit != 0 {
+                    limit -= 1;
+                }
+            }
+        }
+
+        obj
+    }
+
+    pub fn as_times(&self) -> (u64, u64) {
+        let mut s = 0;
+        let mut ns = 0;
+
+        s += self.years * 12 * 30 * 24 * 60 * 60
+            + self.months * 30 * 24 * 60 * 60
+            + self.weeks * 7 * 24 * 60 * 60
+            + self.days * 24 * 60 * 60
+            + self.hours * 60 * 60
+            + self.minutes * 60
+            + self.seconds;
+        ns += self.milliseconds * 1e6 as u64 + self.microseconds * 1e3 as u64 + self.nanoseconds;
+
+        (s, ns)
     }
 }
 
@@ -311,11 +373,11 @@ impl DurationBreakdown {
 /// Perhaps in a future release.
 ///
 #[derive(Clone, Debug, PartialEq)]
-pub struct FancyDuration<D: AsTimes>(pub D);
+pub struct FancyDuration<D: AsTimes + Clone>(pub D);
 
 impl<D> FancyDuration<D>
 where
-    D: AsTimes,
+    D: AsTimes + Clone,
 {
     /// Construct a fancier duration!
     ///
@@ -331,6 +393,21 @@ where
         D: Clone,
     {
         self.0.clone()
+    }
+
+    /// Round to the most significant consecutive values. This will take a number like "1y 2m 3w
+    /// 4d" and with a value of 2 reduce it to "1y 2m". Since it works consecutively, minor values
+    /// will also be dropped, such as "1h 2m 30us", rounded to 3, would still produce "1h 2m"
+    /// because "30us" is below the seconds value, which is more significant and would have been
+    /// counted. "1h 2m 3s" would round to 3 with "1h 2m 3s".
+    pub fn round(&self, limit: usize) -> Self {
+        let mut obj = self.clone();
+        let times = self.0.as_times();
+        let rounded = DurationBreakdown::new(times.0, times.1)
+            .round(limit)
+            .as_times();
+        obj.0 = self.0.from_times(rounded.0, rounded.1);
+        obj
     }
 
     /// Parse a string that contains a human-readable duration. See [FancyDuration] for more
@@ -491,7 +568,7 @@ where
 
 impl<D> std::fmt::Display for FancyDuration<D>
 where
-    D: AsTimes,
+    D: AsTimes + Clone,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.format())
@@ -501,7 +578,7 @@ where
 #[cfg(feature = "serde")]
 impl<D> Serialize for FancyDuration<D>
 where
-    D: AsTimes,
+    D: AsTimes + Clone,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -517,7 +594,7 @@ struct FancyDurationVisitor<D: AsTimes>(PhantomData<D>);
 #[cfg(feature = "serde")]
 impl<D> Visitor<'_> for FancyDurationVisitor<D>
 where
-    D: AsTimes,
+    D: AsTimes + Clone,
 {
     type Value = FancyDuration<D>;
 
@@ -539,7 +616,7 @@ where
 #[cfg(feature = "serde")]
 impl<'de, T> Deserialize<'de> for FancyDuration<T>
 where
-    T: AsTimes,
+    T: AsTimes + Clone,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -798,6 +875,50 @@ mod tests {
             FancyDuration(chrono::Duration::seconds(99 * 24 * 60 * 60 + 324)).format_compact(),
             "3m1w2d5m24s"
         );
+    }
+
+    #[test]
+    fn test_parse_round() {
+        let duration_table = [
+            ("1m 5s 10ms", 2, "1m 5s"),
+            ("1h 1m 30us", 3, "1h 1m"),
+            ("1d 1h 30ns", 1, "1d"),
+            ("10s", 3, "10s"),
+            ("3m 5s", 2, "3m 5s"),
+            ("3m 2w 2d 10m 10s", 3, "3m 2w 2d"),
+        ];
+
+        for (orig_duration, round, new_duration) in &duration_table {
+            assert_eq!(
+                *new_duration,
+                FancyDuration::<Duration>::parse(orig_duration)
+                    .unwrap()
+                    .round(*round)
+                    .to_string()
+            )
+        }
+
+        #[cfg(feature = "time")]
+        for (orig_duration, round, new_duration) in &duration_table {
+            assert_eq!(
+                *new_duration,
+                FancyDuration::<time::Duration>::parse(orig_duration)
+                    .unwrap()
+                    .round(*round)
+                    .to_string()
+            )
+        }
+
+        #[cfg(feature = "chrono")]
+        for (orig_duration, round, new_duration) in &duration_table {
+            assert_eq!(
+                *new_duration,
+                FancyDuration::<chrono::Duration>::parse(orig_duration)
+                    .unwrap()
+                    .round(*round)
+                    .to_string()
+            )
+        }
     }
 
     #[test]
