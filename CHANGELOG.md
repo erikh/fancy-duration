@@ -1,4 +1,4 @@
--   next:
+-   0.9.0:
     -   Optimized formatting of values, results are about 15% faster.
     -   New "truncate" feature limits significant values for the purposes of formatting times hierarchically.
     -   New "filter" feature limits significant values for the purposes of formatting times with selectors.
