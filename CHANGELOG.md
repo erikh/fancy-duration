@@ -1,14 +1,15 @@
-- next:
-    - Optimized formatting of values, results are about 15% faster.
-    - New "round" feature limits significant values for the purposes of formatting times.
-- 0.8.0:
-    - `serde` is now an optional feature that is off by default.
-    - Upgraded criterion.
-- 0.7.2:
-    - Implemented std::str::FromStr (implements parse)
-- 0.7.1:
-    - Implemented std::fmt::Display instead of ToString for more versatility
-- 0.7.0:
-    - Trait definitions for AsFancyDuration and ParseFancyDuration which allow the decoration of other types.
-- Older versions:
-    - Sorry, that's it! I didn't keep a changelog before now.
+-   next:
+    -   Optimized formatting of values, results are about 15% faster.
+    -   New "round" feature limits significant values for the purposes of formatting times.
+    -   Note that AsTimes implementers must now implement `from_times` which converts to the target duration from two time values.
+-   0.8.0:
+    -   `serde` is now an optional feature that is off by default.
+    -   Upgraded criterion.
+-   0.7.2:
+    -   Implemented std::str::FromStr (implements parse)
+-   0.7.1:
+    -   Implemented std::fmt::Display instead of ToString for more versatility
+-   0.7.0:
+    -   Trait definitions for AsFancyDuration and ParseFancyDuration which allow the decoration of other types.
+-   Older versions:
+    -   Sorry, that's it! I didn't keep a changelog before now.
