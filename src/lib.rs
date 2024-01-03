@@ -179,7 +179,7 @@ impl AsTimes for Duration {
     }
 
     fn from_times(&self, s: u64, ns: u64) -> Self {
-        Duration::new(s, (ns as f64 * 0.01).trunc() as u32)
+        Duration::new(s, ns.try_into().unwrap())
     }
 }
 
@@ -227,6 +227,20 @@ impl AsTimes for time::Duration {
     fn from_times(&self, s: u64, ns: u64) -> Self {
         time::Duration::new(s.try_into().unwrap(), ns.try_into().unwrap())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DurationPart {
+    Years,
+    Months,
+    Weeks,
+    Days,
+    Hours,
+    Minutes,
+    Seconds,
+    Milliseconds,
+    Microseconds,
+    Nanoseconds,
 }
 
 #[derive(Debug, Clone)]
@@ -302,6 +316,42 @@ impl DurationBreakdown {
 
                 if limit != 0 {
                     limit -= 1;
+                }
+            }
+        }
+
+        obj
+    }
+
+    pub fn filter(&self, filter: &[DurationPart]) -> Self {
+        let mut obj = self.clone();
+
+        let all = &[
+            DurationPart::Years,
+            DurationPart::Months,
+            DurationPart::Weeks,
+            DurationPart::Days,
+            DurationPart::Hours,
+            DurationPart::Minutes,
+            DurationPart::Seconds,
+            DurationPart::Milliseconds,
+            DurationPart::Microseconds,
+            DurationPart::Nanoseconds,
+        ];
+
+        for part in all {
+            if !filter.contains(part) {
+                match part {
+                    DurationPart::Years => obj.years = 0,
+                    DurationPart::Months => obj.months = 0,
+                    DurationPart::Weeks => obj.weeks = 0,
+                    DurationPart::Days => obj.days = 0,
+                    DurationPart::Hours => obj.hours = 0,
+                    DurationPart::Minutes => obj.minutes = 0,
+                    DurationPart::Seconds => obj.seconds = 0,
+                    DurationPart::Milliseconds => obj.milliseconds = 0,
+                    DurationPart::Microseconds => obj.microseconds = 0,
+                    DurationPart::Nanoseconds => obj.nanoseconds = 0,
                 }
             }
         }
@@ -394,6 +444,18 @@ where
         D: Clone,
     {
         self.0.clone()
+    }
+
+    /// Supply a filter of allowed time values, others will be zeroed out and the time recalculated
+    /// as if they didn't exist.
+    pub fn filter(&self, filter: &[DurationPart]) -> Self {
+        let mut obj = self.clone();
+        let times = self.0.as_times();
+        let filtered = DurationBreakdown::new(times.0, times.1)
+            .filter(filter)
+            .as_times();
+        obj.0 = self.0.from_times(filtered.0, filtered.1);
+        obj
     }
 
     /// Round to the most significant consecutive values. This will take a number like "1y 2m 3w
@@ -878,6 +940,78 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_parse_filter() {
+        use super::DurationPart;
+        let duration_table = [
+            (
+                "1m 5s 10ms",
+                vec![DurationPart::Minutes, DurationPart::Milliseconds],
+                "1m 10ms",
+            ),
+            (
+                "1h 1m 30us",
+                vec![DurationPart::Minutes, DurationPart::Microseconds],
+                "1m 30us",
+            ),
+            ("1d 1h 30ns", vec![DurationPart::Days], "1d"),
+            (
+                "10s",
+                vec![DurationPart::Seconds, DurationPart::Minutes],
+                "10s",
+            ),
+            (
+                "3m 5s",
+                vec![
+                    DurationPart::Hours,
+                    DurationPart::Minutes,
+                    DurationPart::Seconds,
+                ],
+                "3m 5s",
+            ),
+            (
+                "3m 2w 2d 10m 10s",
+                vec![
+                    DurationPart::Months,
+                    DurationPart::Weeks,
+                    DurationPart::Days,
+                ],
+                "3m 2w 2d",
+            ),
+        ];
+
+        for (orig_duration, filter, new_duration) in &duration_table {
+            assert_eq!(
+                *new_duration,
+                FancyDuration::<Duration>::parse(orig_duration)
+                    .unwrap()
+                    .filter(&filter)
+                    .to_string()
+            )
+        }
+
+        #[cfg(feature = "time")]
+        for (orig_duration, filter, new_duration) in &duration_table {
+            assert_eq!(
+                *new_duration,
+                FancyDuration::<time::Duration>::parse(orig_duration)
+                    .unwrap()
+                    .filter(&filter)
+                    .to_string()
+            )
+        }
+
+        #[cfg(feature = "chrono")]
+        for (orig_duration, filter, new_duration) in &duration_table {
+            assert_eq!(
+                *new_duration,
+                FancyDuration::<chrono::Duration>::parse(orig_duration)
+                    .unwrap()
+                    .filter(&filter)
+                    .to_string()
+            )
+        }
+    }
     #[test]
     fn test_parse_round() {
         let duration_table = [
