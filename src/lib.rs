@@ -214,6 +214,55 @@ impl AsTimes for time::Duration {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct DurationBreakdown {
+    pub(crate) years: u64,
+    pub(crate) months: u64,
+    pub(crate) weeks: u64,
+    pub(crate) days: u64,
+    pub(crate) hours: u64,
+    pub(crate) minutes: u64,
+    pub(crate) seconds: u64,
+    pub(crate) milliseconds: u64,
+    pub(crate) microseconds: u64,
+    pub(crate) nanoseconds: u64,
+}
+
+impl DurationBreakdown {
+    pub(crate) fn new(mut s: u64, mut ns: u64) -> Self {
+        let years = s / 12 / 30 / 24 / 60 / 60;
+        s -= years * 12 * 30 * 24 * 60 * 60;
+        let months = s / 30 / 24 / 60 / 60;
+        s -= months * 30 * 24 * 60 * 60;
+        let weeks = s / 7 / 24 / 60 / 60;
+        s -= weeks * 7 * 24 * 60 * 60;
+        let days = s / 24 / 60 / 60;
+        s -= days * 24 * 60 * 60;
+        let hours = s / 60 / 60;
+        s -= hours * 60 * 60;
+        let minutes = s / 60;
+        s -= minutes * 60;
+
+        let ms = ns / 1e6 as u64;
+        ns -= ms * 1e6 as u64;
+        let us = ns / 1e3 as u64;
+        ns -= us * 1e3 as u64;
+
+        Self {
+            years,
+            months,
+            weeks,
+            days,
+            hours,
+            minutes,
+            seconds: s,
+            milliseconds: ms,
+            microseconds: us,
+            nanoseconds: ns,
+        }
+    }
+}
+
 /// A [FancyDuration] contains a duration of type that implements [AsTimes]. It is capable of that
 /// point at parsing strings as well as returning the duration value encapsulated. If included in a
 /// serde serializing or deserializing workflow, it will automatically construct the appropriate
@@ -303,76 +352,71 @@ where
     }
 
     fn format_internal(&self, pad: bool) -> String {
-        let mut times = self.0.as_times();
+        let times = self.0.as_times();
 
         if times.0 == 0 && times.1 == 0 {
             return "0".to_string();
         }
 
-        let years = times.0 / 12 / 30 / 24 / 60 / 60;
-        times.0 -= years * 12 * 30 * 24 * 60 * 60;
-        let months = times.0 / 30 / 24 / 60 / 60;
-        times.0 -= months * 30 * 24 * 60 * 60;
-        let weeks = times.0 / 7 / 24 / 60 / 60;
-        times.0 -= weeks * 7 * 24 * 60 * 60;
-        let days = times.0 / 24 / 60 / 60;
-        times.0 -= days * 24 * 60 * 60;
-        let hours = times.0 / 60 / 60;
-        times.0 -= hours * 60 * 60;
-        let minutes = times.0 / 60;
-        times.0 -= minutes * 60;
-
-        let ms = times.1 / 1e6 as u64;
-        times.1 -= ms * 1e6 as u64;
-        let us = times.1 / 1e3 as u64;
-        times.1 -= us * 1e3 as u64;
+        let breakdown = DurationBreakdown::new(times.0, times.1);
 
         let mut itoa = itoa::Buffer::new();
 
-        // I should fix this someday
-        let s = if years > 0 {
-            itoa.format(years).to_string() + "y" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        } + &(if months > 0 {
-            itoa.format(months).to_string() + "m" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        }) + &(if weeks > 0 {
-            itoa.format(weeks).to_string() + "w" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        }) + &(if days > 0 {
-            itoa.format(days).to_string() + "d" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        }) + &(if hours > 0 {
-            itoa.format(hours).to_string() + "h" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        }) + &(if minutes > 0 {
-            itoa.format(minutes).to_string() + "m" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        }) + &(if times.0 > 0 {
-            itoa.format(times.0).to_string() + "s" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        }) + &(if ms > 0 {
-            itoa.format(ms).to_string() + "ms" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        }) + &(if us > 0 {
-            itoa.format(us).to_string() + "us" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        }) + &(if times.1 > 0 {
-            itoa.format(times.1).to_string() + "ns" + if pad { " " } else { "" }
-        } else {
-            "".to_string()
-        });
-
-        s.trim_end().to_string()
+        format!(
+            "{}{}{}{}{}{}{}{}{}{}",
+            if breakdown.years > 0 {
+                itoa.format(breakdown.years).to_string() + "y" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.months > 0 {
+                itoa.format(breakdown.months).to_string() + "m" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.weeks > 0 {
+                itoa.format(breakdown.weeks).to_string() + "w" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.days > 0 {
+                itoa.format(breakdown.days).to_string() + "d" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.hours > 0 {
+                itoa.format(breakdown.hours).to_string() + "h" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.minutes > 0 {
+                itoa.format(breakdown.minutes).to_string() + "m" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.seconds > 0 {
+                itoa.format(breakdown.seconds).to_string() + "s" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.milliseconds > 0 {
+                itoa.format(breakdown.milliseconds).to_string() + "ms" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.microseconds > 0 {
+                itoa.format(breakdown.microseconds).to_string() + "us" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            },
+            if breakdown.nanoseconds > 0 {
+                itoa.format(breakdown.nanoseconds).to_string() + "ns" + if pad { " " } else { "" }
+            } else {
+                "".to_string()
+            }
+        )
+        .trim()
+        .to_string()
     }
 
     /// Parse a string in fancy duration format to a tuple of (seconds, nanoseconds). Nanoseconds
