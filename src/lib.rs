@@ -291,7 +291,7 @@ impl DurationBreakdown {
         }
     }
 
-    pub(crate) fn round(&self, mut limit: usize) -> Self {
+    pub(crate) fn truncate(&self, mut limit: usize) -> Self {
         let mut obj = self.clone();
         let mut limit_started = false;
 
@@ -458,18 +458,18 @@ where
         obj
     }
 
-    /// Round to the most significant consecutive values. This will take a number like "1y 2m 3w
+    /// Truncate to the most significant consecutive values. This will take a number like "1y 2m 3w
     /// 4d" and with a value of 2 reduce it to "1y 2m". Since it works consecutively, minor values
-    /// will also be dropped, such as "1h 2m 30us", rounded to 3, would still produce "1h 2m"
+    /// will also be dropped, such as "1h 2m 30us", truncated to 3, would still produce "1h 2m"
     /// because "30us" is below the seconds value, which is more significant and would have been
-    /// counted. "1h 2m 3s" would round to 3 with "1h 2m 3s".
-    pub fn round(&self, limit: usize) -> Self {
+    /// counted. "1h 2m 3s" would truncate to 3 with "1h 2m 3s".
+    pub fn truncate(&self, limit: usize) -> Self {
         let mut obj = self.clone();
         let times = self.0.as_times();
-        let rounded = DurationBreakdown::new(times.0, times.1)
-            .round(limit)
+        let truncated = DurationBreakdown::new(times.0, times.1)
+            .truncate(limit)
             .as_times();
-        obj.0 = self.0.from_times(rounded.0, rounded.1);
+        obj.0 = self.0.from_times(truncated.0, truncated.1);
         obj
     }
 
@@ -1013,7 +1013,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_parse_round() {
+    fn test_parse_truncate() {
         let duration_table = [
             ("1m 5s 10ms", 2, "1m 5s"),
             ("1h 1m 30us", 3, "1h 1m"),
@@ -1023,34 +1023,34 @@ mod tests {
             ("3m 2w 2d 10m 10s", 3, "3m 2w 2d"),
         ];
 
-        for (orig_duration, round, new_duration) in &duration_table {
+        for (orig_duration, truncate, new_duration) in &duration_table {
             assert_eq!(
                 *new_duration,
                 FancyDuration::<Duration>::parse(orig_duration)
                     .unwrap()
-                    .round(*round)
+                    .truncate(*truncate)
                     .to_string()
             )
         }
 
         #[cfg(feature = "time")]
-        for (orig_duration, round, new_duration) in &duration_table {
+        for (orig_duration, truncate, new_duration) in &duration_table {
             assert_eq!(
                 *new_duration,
                 FancyDuration::<time::Duration>::parse(orig_duration)
                     .unwrap()
-                    .round(*round)
+                    .truncate(*truncate)
                     .to_string()
             )
         }
 
         #[cfg(feature = "chrono")]
-        for (orig_duration, round, new_duration) in &duration_table {
+        for (orig_duration, truncate, new_duration) in &duration_table {
             assert_eq!(
                 *new_duration,
                 FancyDuration::<chrono::Duration>::parse(orig_duration)
                     .unwrap()
-                    .round(*round)
+                    .truncate(*truncate)
                     .to_string()
             )
         }

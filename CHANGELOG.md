@@ -1,6 +1,6 @@
 -   next:
     -   Optimized formatting of values, results are about 15% faster.
-    -   New "round" feature limits significant values for the purposes of formatting times hierarchically.
+    -   New "truncate" feature limits significant values for the purposes of formatting times hierarchically.
     -   New "filter" feature limits significant values for the purposes of formatting times with selectors.
     -   Note that AsTimes implementers must now implement `from_times` which converts to the target duration from two time values.
 -   0.8.0:
