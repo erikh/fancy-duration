@@ -1,3 +1,6 @@
+- next:
+    - Optimized formatting of values, results are about 15% faster.
+    - New "round" feature limits significant values for the purposes of formatting times.
 - 0.8.0:
     - `serde` is now an optional feature that is off by default.
     - Upgraded criterion.
