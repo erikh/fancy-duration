@@ -57,57 +57,57 @@ Each interval test increases the number of things that will be formatted. The fi
 
 Benchmarking system was a Ryzen 5900X with 64GB RAM running Linux 6.6.8 in a desktop configuration.
 
-As of 0.9.0:
+As of 0.9.1:
 
 ```
 fancy duration format seconds: std
-                        time:   [656.09 ps 659.41 ps 663.30 ps]
+                        time:   [644.13 ps 645.34 ps 646.96 ps]
 fancy duration format seconds: time
-                        time:   [6.8162 ns 6.8188 ns 6.8215 ns]
+                        time:   [6.6756 ns 6.6945 ns 6.7181 ns]
 fancy duration format seconds: chrono
-                        time:   [671.98 ps 672.46 ps 672.94 ps]
+                        time:   [658.36 ps 658.73 ps 659.15 ps]
 fancy duration format minutes: std
-                        time:   [666.71 ps 667.09 ps 667.50 ps]
+                        time:   [666.00 ps 666.50 ps 667.03 ps]
 fancy duration format minutes: time
-                        time:   [6.8165 ns 6.8193 ns 6.8222 ns]
+                        time:   [6.6301 ns 6.6324 ns 6.6349 ns]
 fancy duration format minutes: chrono
-                        time:   [672.28 ps 672.77 ps 673.32 ps]
+                        time:   [646.99 ps 647.24 ps 647.50 ps]
 fancy duration format hours: std
-                        time:   [670.27 ps 670.54 ps 670.83 ps]
+                        time:   [658.35 ps 660.83 ps 662.88 ps]
 fancy duration format hours: time
-                        time:   [6.8001 ns 6.8028 ns 6.8059 ns]
+                        time:   [6.5761 ns 6.5792 ns 6.5826 ns]
 fancy duration format hours: chrono
-                        time:   [674.97 ps 675.44 ps 675.95 ps]
+                        time:   [648.05 ps 648.38 ps 648.74 ps]
 fancy duration format days: std
-                        time:   [665.85 ps 666.24 ps 666.67 ps]
+                        time:   [641.06 ps 641.33 ps 641.62 ps]
 fancy duration format days: time
-                        time:   [6.6753 ns 6.6955 ns 6.7188 ns]
+                        time:   [6.5374 ns 6.5410 ns 6.5452 ns]
 fancy duration format days: chrono
-                        time:   [669.73 ps 670.17 ps 670.67 ps]
+                        time:   [662.60 ps 665.24 ps 667.41 ps]
 fancy duration format weeks: std
-                        time:   [667.88 ps 668.16 ps 668.47 ps]
+                        time:   [641.06 ps 641.32 ps 641.61 ps]
 fancy duration format weeks: time
-                        time:   [6.8532 ns 6.8562 ns 6.8595 ns]
+                        time:   [6.7987 ns 6.8158 ns 6.8288 ns]
 fancy duration format weeks: chrono
-                        time:   [671.99 ps 672.38 ps 672.80 ps]
+                        time:   [660.01 ps 662.64 ps 665.05 ps]
 fancy duration format months: std
-                        time:   [642.25 ps 643.25 ps 644.49 ps]
+                        time:   [641.66 ps 642.02 ps 642.41 ps]
 fancy duration format months: time
-                        time:   [6.7654 ns 6.7885 ns 6.8113 ns]
+                        time:   [6.5435 ns 6.5498 ns 6.5573 ns]
 fancy duration format months: chrono
-                        time:   [669.46 ps 669.80 ps 670.15 ps]
+                        time:   [672.00 ps 672.39 ps 672.83 ps]
 fancy duration parse one: std
-                        time:   [75.938 µs 76.011 µs 76.089 µs]
+                        time:   [332.00 ns 332.48 ns 332.98 ns]
 fancy duration parse one: time
-                        time:   [75.263 µs 75.593 µs 76.024 µs]
+                        time:   [346.25 ns 346.58 ns 346.92 ns]
 fancy duration parse one: chrono
-                        time:   [75.311 µs 75.408 µs 75.495 µs]
+                        time:   [369.81 ns 371.26 ns 372.65 ns]
 fancy duration parse 5 distinct items: std
-                        time:   [378.16 µs 379.05 µs 379.89 µs]
+                        time:   [1.9150 µs 1.9183 µs 1.9214 µs]
 fancy duration parse 5 distinct items: time
-                        time:   [376.00 µs 377.52 µs 379.09 µs]
+                        time:   [1.8446 µs 1.8474 µs 1.8503 µs]
 fancy duration parse 5 distinct items: chrono
-                        time:   [364.04 µs 364.37 µs 364.72 µs]
+                        time:   [1.8281 µs 1.8311 µs 1.8345 µs]
 ```
 
 ## Author
