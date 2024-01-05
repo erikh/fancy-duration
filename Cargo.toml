@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 authors = ["Erik Hollensbe <github@hollensbe.org>"]
 readme = "README.md"
-keywords = ["time", "duration", "parse", "chrono"]
+keywords = ["time", "duration", "parse", "chrono", "human", "serde", "human-friendly"]
 description = "Fancy text representations for durations"
 repository = "https://github.com/erikh/fancy-duration"
 
