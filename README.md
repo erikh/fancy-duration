@@ -53,6 +53,10 @@ pub fn main() {
 
 ## Benchmarks
 
+Each interval test increases the number of things that will be formatted. The first set of parse tests parse one string with several terms, the others parse a static set of 5 terms in a single iteration.
+
+Benchmarking system was a Ryzen 5900X with 64GB RAM running Linux 6.6.8 in a desktop configuration.
+
 As of 0.9.0:
 
 ```
