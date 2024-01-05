@@ -1,3 +1,6 @@
+-   next:
+    -   Lots of optimizations: small gains on formatting, huge gains on parsing.
+    -   Additional benchmarks to run for parsing and chrono.
 -   0.9.0:
     -   Optimized formatting of values, results are about 15% faster.
     -   New "truncate" feature limits significant values for the purposes of formatting times hierarchically.

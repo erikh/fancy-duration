@@ -64,6 +64,10 @@
 //! }
 //! ```
 
+lazy_static::lazy_static! {
+    static ref FANCY_FORMAT: regex::Regex = regex::Regex::new(r#"([0-9]+)([a-zA-Z]{1,2})\s*"#).unwrap();
+}
+
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, Deserialize, Serialize};
 #[cfg(feature = "serde")]
@@ -257,20 +261,27 @@ pub(crate) struct DurationBreakdown {
     pub(crate) nanoseconds: u64,
 }
 
+const YEAR: u64 = 12 * 30 * 24 * 60 * 60;
+const MONTH: u64 = 30 * 24 * 60 * 60;
+const WEEK: u64 = 7 * 24 * 60 * 60;
+const DAY: u64 = 24 * 60 * 60;
+const HOUR: u64 = 60 * 60;
+const MINUTE: u64 = 60;
+
 impl DurationBreakdown {
     pub(crate) fn new(mut s: u64, mut ns: u64) -> Self {
-        let years = s / 12 / 30 / 24 / 60 / 60;
-        s -= years * 12 * 30 * 24 * 60 * 60;
-        let months = s / 30 / 24 / 60 / 60;
-        s -= months * 30 * 24 * 60 * 60;
-        let weeks = s / 7 / 24 / 60 / 60;
-        s -= weeks * 7 * 24 * 60 * 60;
-        let days = s / 24 / 60 / 60;
-        s -= days * 24 * 60 * 60;
-        let hours = s / 60 / 60;
-        s -= hours * 60 * 60;
-        let minutes = s / 60;
-        s -= minutes * 60;
+        let years = s / YEAR;
+        s -= years * YEAR;
+        let months = s / MONTH;
+        s -= months * MONTH;
+        let weeks = s / WEEK;
+        s -= weeks * WEEK;
+        let days = s / DAY;
+        s -= days * DAY;
+        let hours = s / HOUR;
+        s -= hours * HOUR;
+        let minutes = s / MINUTE;
+        s -= minutes * MINUTE;
 
         let ms = ns / 1e6 as u64;
         ns -= ms * 1e6 as u64;
@@ -500,63 +511,55 @@ where
 
         let breakdown = DurationBreakdown::new(times.0, times.1);
 
-        let mut itoa = itoa::Buffer::new();
+        let mut s = String::new();
 
-        format!(
-            "{}{}{}{}{}{}{}{}{}{}",
-            if breakdown.years > 0 {
-                itoa.format(breakdown.years).to_string() + "y" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.months > 0 {
-                itoa.format(breakdown.months).to_string() + "m" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.weeks > 0 {
-                itoa.format(breakdown.weeks).to_string() + "w" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.days > 0 {
-                itoa.format(breakdown.days).to_string() + "d" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.hours > 0 {
-                itoa.format(breakdown.hours).to_string() + "h" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.minutes > 0 {
-                itoa.format(breakdown.minutes).to_string() + "m" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.seconds > 0 {
-                itoa.format(breakdown.seconds).to_string() + "s" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.milliseconds > 0 {
-                itoa.format(breakdown.milliseconds).to_string() + "ms" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.microseconds > 0 {
-                itoa.format(breakdown.microseconds).to_string() + "us" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            },
-            if breakdown.nanoseconds > 0 {
-                itoa.format(breakdown.nanoseconds).to_string() + "ns" + if pad { " " } else { "" }
-            } else {
-                "".to_string()
-            }
-        )
-        .trim()
-        .to_string()
+        let spad = if pad { " " } else { "" };
+
+        if breakdown.years > 0 {
+            s += &format!("{}y{}", breakdown.years, spad)
+        }
+
+        if breakdown.months > 0 {
+            s += &format!("{}m{}", breakdown.months, spad)
+        }
+
+        if breakdown.weeks > 0 {
+            s += &format!("{}w{}", breakdown.weeks, spad)
+        }
+
+        if breakdown.days > 0 {
+            s += &format!("{}d{}", breakdown.days, spad)
+        }
+
+        if breakdown.hours > 0 {
+            s += &format!("{}h{}", breakdown.hours, spad)
+        }
+
+        if breakdown.minutes > 0 {
+            s += &format!("{}m{}", breakdown.minutes, spad)
+        }
+
+        if breakdown.seconds > 0 {
+            s += &format!("{}s{}", breakdown.seconds, spad)
+        }
+
+        if breakdown.milliseconds > 0 {
+            s += &format!("{}ms{}", breakdown.milliseconds, spad)
+        }
+
+        if breakdown.microseconds > 0 {
+            s += &format!("{}us{}", breakdown.microseconds, spad)
+        }
+
+        if breakdown.nanoseconds > 0 {
+            s += &format!("{}ns{}", breakdown.nanoseconds, spad)
+        }
+
+        if pad {
+            s.truncate(s.len() - 1);
+        }
+
+        s
     }
 
     /// Parse a string in fancy duration format to a tuple of (seconds, nanoseconds). Nanoseconds
@@ -567,10 +570,9 @@ where
         let mut seconds: u64 = 0;
         let mut past_minutes = false;
 
-        let rx = regex::Regex::new(r#"([0-9]+)([a-zA-Z]{1,2})\s*"#)?;
         let mut list: Vec<(&str, &str)> = Vec::new();
 
-        for item in rx.captures_iter(s) {
+        for item in FANCY_FORMAT.captures_iter(s) {
             list.push((item.get(1).unwrap().as_str(), item.get(2).unwrap().as_str()));
         }
 
