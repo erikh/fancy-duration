@@ -1,3 +1,5 @@
+-   0.9.2:
+    -   Hotfix to address deprecations in chrono library
 -   0.9.1:
     -   Lots of optimizations: small gains on formatting, huge gains on parsing.
     -   Additional benchmarks to run for parsing and chrono.
