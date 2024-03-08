@@ -54,12 +54,12 @@
 //!     #[cfg(feature = "chrono")]
 //!     {
 //!         // also works with chrono!
-//!         assert_eq!(FancyDuration(chrono::Duration::seconds(20)).to_string(), "20s");
-//!         assert_eq!(FancyDuration(chrono::Duration::seconds(600)).to_string(), "10m");
-//!         assert_eq!(FancyDuration(chrono::Duration::seconds(120)).to_string(), "2m");
-//!         assert_eq!(FancyDuration(chrono::Duration::seconds(185)).to_string(), "3m 5s");
-//!         assert_eq!(FancyDuration::<chrono::Duration>::parse("3m 5s").unwrap().duration(), chrono::Duration::seconds(185));
-//!         assert_eq!(FancyDuration(chrono::Duration::seconds(185)).to_string(), "3m 5s");
+//!         assert_eq!(FancyDuration(chrono::TimeDelta::try_seconds(20).unwrap_or_default()).to_string(), "20s");
+//!         assert_eq!(FancyDuration(chrono::TimeDelta::try_seconds(600).unwrap_or_default()).to_string(), "10m");
+//!         assert_eq!(FancyDuration(chrono::TimeDelta::try_seconds(120).unwrap_or_default()).to_string(), "2m");
+//!         assert_eq!(FancyDuration(chrono::TimeDelta::try_seconds(185).unwrap_or_default()).to_string(), "3m 5s");
+//!         assert_eq!(FancyDuration::<chrono::Duration>::parse("3m 5s").unwrap().duration(), chrono::TimeDelta::try_seconds(185).unwrap_or_default());
+//!         assert_eq!(FancyDuration(chrono::TimeDelta::try_seconds(185).unwrap_or_default()).to_string(), "3m 5s");
 //!     }
 //! }
 //! ```
@@ -204,12 +204,14 @@ impl AsTimes for chrono::Duration {
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
         let ns = FancyDuration::<chrono::Duration>::parse_to_ns(s)?;
 
-        Ok(chrono::Duration::seconds(ns.0.try_into()?)
-            + chrono::Duration::nanoseconds(ns.1.try_into()?))
+        Ok(
+            chrono::TimeDelta::try_seconds(ns.0.try_into()?).unwrap_or_default()
+                + chrono::Duration::nanoseconds(ns.1.try_into()?),
+        )
     }
 
     fn from_times(&self, s: u64, ns: u64) -> Self {
-        chrono::Duration::seconds(s.try_into().unwrap())
+        chrono::TimeDelta::try_seconds(s.try_into().unwrap()).unwrap_or_default()
             + chrono::Duration::nanoseconds(ns.try_into().unwrap())
     }
 }
@@ -877,67 +879,84 @@ mod tests {
             "600us"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::milliseconds(600)).to_string(),
+            FancyDuration(chrono::TimeDelta::try_milliseconds(600).unwrap_or_default()).to_string(),
             "600ms"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(600)).to_string(),
+            FancyDuration(chrono::TimeDelta::try_seconds(600).unwrap_or_default()).to_string(),
             "10m"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(120)).to_string(),
+            FancyDuration(chrono::TimeDelta::try_seconds(120).unwrap_or_default()).to_string(),
             "2m"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(185)).to_string(),
+            FancyDuration(chrono::TimeDelta::try_seconds(185).unwrap_or_default()).to_string(),
             "3m 5s"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(24 * 60 * 60)).to_string(),
+            FancyDuration(chrono::TimeDelta::try_seconds(24 * 60 * 60).unwrap_or_default())
+                .to_string(),
             "1d"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(324)).to_string(),
+            FancyDuration(chrono::TimeDelta::try_seconds(324).unwrap_or_default()).to_string(),
             "5m 24s"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(24 * 60 * 60 + 324)).to_string(),
+            FancyDuration(chrono::TimeDelta::try_seconds(24 * 60 * 60 + 324).unwrap_or_default())
+                .to_string(),
             "1d 5m 24s"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(27 * 24 * 60 * 60 + 324)).to_string(),
+            FancyDuration(
+                chrono::TimeDelta::try_seconds(27 * 24 * 60 * 60 + 324).unwrap_or_default()
+            )
+            .to_string(),
             "3w 6d 5m 24s"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(99 * 24 * 60 * 60 + 324)).to_string(),
+            FancyDuration(
+                chrono::TimeDelta::try_seconds(99 * 24 * 60 * 60 + 324).unwrap_or_default()
+            )
+            .to_string(),
             "3m 1w 2d 5m 24s"
         );
 
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(
-                12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
-            ))
+            FancyDuration(
+                chrono::Duration::try_seconds(12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,)
+                    .unwrap_or_default()
+            )
             .to_string(),
             "1y 1w 3d"
         );
 
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(
-                12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
-            ))
+            FancyDuration(
+                chrono::TimeDelta::try_seconds(12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,)
+                    .unwrap_or_default()
+            )
             .format_compact(),
             "1y1w3d"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(24 * 60 * 60 + 324)).format_compact(),
+            FancyDuration(chrono::TimeDelta::try_seconds(24 * 60 * 60 + 324).unwrap_or_default())
+                .format_compact(),
             "1d5m24s"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(27 * 24 * 60 * 60 + 324)).format_compact(),
+            FancyDuration(
+                chrono::TimeDelta::try_seconds(27 * 24 * 60 * 60 + 324).unwrap_or_default()
+            )
+            .format_compact(),
             "3w6d5m24s"
         );
         assert_eq!(
-            FancyDuration(chrono::Duration::seconds(99 * 24 * 60 * 60 + 324)).format_compact(),
+            FancyDuration(
+                chrono::TimeDelta::try_seconds(99 * 24 * 60 * 60 + 324).unwrap_or_default()
+            )
+            .format_compact(),
             "3m1w2d5m24s"
         );
     }
@@ -1120,24 +1139,42 @@ mod tests {
             let chrono_table = [
                 (
                     "1m 10ms",
-                    chrono::Duration::seconds(60) + chrono::Duration::milliseconds(10),
+                    chrono::TimeDelta::try_seconds(60).unwrap_or_default()
+                        + chrono::TimeDelta::try_milliseconds(10).unwrap_or_default(),
                 ),
                 (
                     "1h 30us",
-                    chrono::Duration::hours(1) + chrono::Duration::microseconds(30),
+                    chrono::TimeDelta::try_hours(1).unwrap_or_default()
+                        + chrono::Duration::microseconds(30),
                 ),
                 (
                     "1d 30ns",
-                    chrono::Duration::days(1) + chrono::Duration::nanoseconds(30),
+                    chrono::TimeDelta::try_days(1).unwrap_or_default()
+                        + chrono::Duration::nanoseconds(30),
                 ),
-                ("10s", chrono::Duration::seconds(10)),
-                ("3m 5s", chrono::Duration::seconds(185)),
-                ("3m 2w 2d 10m 10s", chrono::Duration::seconds(9159010)),
+                (
+                    "10s",
+                    chrono::TimeDelta::try_seconds(10).unwrap_or_default(),
+                ),
+                (
+                    "3m 5s",
+                    chrono::TimeDelta::try_seconds(185).unwrap_or_default(),
+                ),
+                (
+                    "3m 2w 2d 10m 10s",
+                    chrono::TimeDelta::try_seconds(9159010).unwrap_or_default(),
+                ),
             ];
 
             let compact_chrono_table = [
-                ("3m5s", chrono::Duration::seconds(185)),
-                ("3m2w2d10m10s", chrono::Duration::seconds(9159010)),
+                (
+                    "3m5s",
+                    chrono::TimeDelta::try_seconds(185).unwrap_or_default(),
+                ),
+                (
+                    "3m2w2d10m10s",
+                    chrono::TimeDelta::try_seconds(9159010).unwrap_or_default(),
+                ),
             ];
             for item in chrono_table {
                 let fancy = FancyDuration::<chrono::Duration>::parse(item.0).unwrap();
@@ -1212,11 +1249,17 @@ mod tests {
 
             let chrono_table = [
                 ("{\"duration\":\"10ns\"}", chrono::Duration::nanoseconds(10)),
-                ("{\"duration\":\"10s\"}", chrono::Duration::seconds(10)),
-                ("{\"duration\":\"3m 5s\"}", chrono::Duration::seconds(185)),
+                (
+                    "{\"duration\":\"10s\"}",
+                    chrono::TimeDelta::try_seconds(10).unwrap_or_default(),
+                ),
+                (
+                    "{\"duration\":\"3m 5s\"}",
+                    chrono::TimeDelta::try_seconds(185).unwrap_or_default(),
+                ),
                 (
                     "{\"duration\":\"1y 3m 2w 2d 10m 10s\"}",
-                    chrono::Duration::seconds(40263010),
+                    chrono::TimeDelta::try_seconds(40263010).unwrap_or_default(),
                 ),
             ];
 
