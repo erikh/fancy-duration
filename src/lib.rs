@@ -436,7 +436,7 @@ impl DurationBreakdown {
 /// These durations do not account for variations in the potential unit based on the current time.
 /// Perhaps in a future release.
 ///
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FancyDuration<D: AsTimes + Clone>(pub D);
 
 impl<D> FancyDuration<D>
