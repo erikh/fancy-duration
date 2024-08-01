@@ -166,15 +166,7 @@ pub trait AsTimes: Sized {
 
 impl AsTimes for Duration {
     fn as_times(&self) -> (u64, u64) {
-        let secs = self.as_secs();
-        let nanos = self.as_nanos();
-
-        (
-            secs,
-            (nanos - (nanos / 1e9 as u128) * 1e9 as u128)
-                .try_into()
-                .unwrap(),
-        )
+        (self.as_secs(), self.subsec_nanos() as u64)
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
@@ -191,14 +183,9 @@ impl AsTimes for Duration {
 impl AsTimes for chrono::Duration {
     fn as_times(&self) -> (u64, u64) {
         let secs = self.num_seconds();
-        let nanos = self.num_nanoseconds().unwrap();
+        let nanos = self.subsec_nanos();
 
-        (
-            secs.try_into().unwrap(),
-            (nanos - (nanos / 1e9 as i64) * 1e9 as i64)
-                .try_into()
-                .unwrap(),
-        )
+        (secs as u64, nanos as u64)
     }
 
     fn parse_to_duration(s: &str) -> Result<Self, anyhow::Error> {
@@ -263,12 +250,12 @@ pub(crate) struct DurationBreakdown {
     pub(crate) nanoseconds: u64,
 }
 
-const YEAR: u64 = 12 * 30 * 24 * 60 * 60;
-const MONTH: u64 = 30 * 24 * 60 * 60;
-const WEEK: u64 = 7 * 24 * 60 * 60;
-const DAY: u64 = 24 * 60 * 60;
-const HOUR: u64 = 60 * 60;
 const MINUTE: u64 = 60;
+const HOUR: u64 = 60 * MINUTE;
+const DAY: u64 = 24 * HOUR;
+const WEEK: u64 = 7 * DAY;
+const MONTH: u64 = 30 * DAY;
+const YEAR: u64 = 365 * DAY;
 
 impl DurationBreakdown {
     pub(crate) fn new(mut s: u64, mut ns: u64) -> Self {
@@ -376,12 +363,12 @@ impl DurationBreakdown {
         let mut s = 0;
         let mut ns = 0;
 
-        s += self.years * 12 * 30 * 24 * 60 * 60
-            + self.months * 30 * 24 * 60 * 60
-            + self.weeks * 7 * 24 * 60 * 60
-            + self.days * 24 * 60 * 60
-            + self.hours * 60 * 60
-            + self.minutes * 60
+        s += self.years * YEAR
+            + self.months * MONTH
+            + self.weeks * WEEK
+            + self.days * DAY
+            + self.hours * HOUR
+            + self.minutes * MINUTE
             + self.seconds;
         ns += self.milliseconds * 1e6 as u64 + self.microseconds * 1e3 as u64 + self.nanoseconds;
 
@@ -762,12 +749,17 @@ mod tests {
         );
 
         assert_eq!(
-            FancyDuration(Duration::new(12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60, 0)).to_string(),
+            FancyDuration(Duration::new(365 * 24 * 60 * 60)).to_string(),
+            "1y"
+        );
+
+        assert_eq!(
+            FancyDuration(Duration::new(365 * 24 * 60 * 60 + 10 * 24 * 60 * 60, 0)).to_string(),
             "1y 1w 3d"
         );
 
         assert_eq!(
-            FancyDuration(Duration::new(12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60, 0))
+            FancyDuration(Duration::new(365 * 24 * 60 * 60 + 10 * 24 * 60 * 60, 0))
                 .format_compact(),
             "1y1w3d"
         );
@@ -837,7 +829,7 @@ mod tests {
 
         assert_eq!(
             FancyDuration(time::Duration::new(
-                12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
+                365 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
                 0
             ))
             .to_string(),
@@ -846,7 +838,7 @@ mod tests {
 
         assert_eq!(
             FancyDuration(time::Duration::new(
-                12 * 30 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
+                365 * 24 * 60 * 60 + 10 * 24 * 60 * 60,
                 0
             ))
             .format_compact(),
