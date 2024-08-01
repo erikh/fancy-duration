@@ -749,6 +749,11 @@ mod tests {
         );
 
         assert_eq!(
+            FancyDuration(Duration::new(365 * 24 * 60 * 60)).to_string(),
+            "1y"
+        );
+
+        assert_eq!(
             FancyDuration(Duration::new(365 * 24 * 60 * 60 + 10 * 24 * 60 * 60, 0)).to_string(),
             "1y 1w 3d"
         );
